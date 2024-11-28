@@ -1,0 +1,60 @@
+{
+  "name": "action-jira-story-point-charts",
+  "version": "0.1.0",
+  "description": "Generate story point charts from jira issues and post them to slack",
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "esbuild --bundle --external:@mermaid-js/mermaid-cli --external:@actions/core --platform=node --format=esm src/index.ts --outfile=lib/index.mjs",
+    "lint-check": "eslint .",
+    "lint": "pnpm lint-check --fix",
+    "format-check": "prettier --check .",
+    "format": "pnpm format-check --write",
+    "type-check": "pnpm tsc --noEmit",
+    "test": "pnpm vitest",
+    "fix": "pnpm lint && pnpm format",
+    "tag": "./scripts/tag.sh",
+    "validate": "pnpm lint-check && pnpm format-check && pnpm type-check && pnpm test run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/insidewhy/action-body-fields"
+  },
+  "keywords": [
+    "actions",
+    "slack",
+    "jira",
+    "storypoints"
+  ],
+  "author": "insidewhy",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "1.11.1",
+    "@mermaid-js/mermaid-cli": "^11.4.0"
+  },
+  "devDependencies": {
+    "@eslint/compat": "^1.2.2",
+    "@eslint/js": "^9.14.0",
+    "@types/node": "22.8.7",
+    "@typescript-eslint/parser": "^8.13.0",
+    "esbuild": "0.24.0",
+    "eslint": "9.14.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
+    "globals": "^15.12.0",
+    "munamuna": "^0.2.1",
+    "prettier": "3.3.3",
+    "typescript": "5.6.3",
+    "typescript-eslint": "^8.12.2",
+    "vitest": "^2.1.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.12.2",
+  "volta": {
+    "pnpm": "9.11.0",
+    "node": "20.17.0"
+  }
+}

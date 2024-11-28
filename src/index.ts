@@ -32,7 +32,7 @@ async function runChartBot(options: Options) {
 }
 
 export async function run(): Promise<void> {
-  const options = await parseOptions()
+  const options = parseOptions()
   await runChartBot(options)
 }
 

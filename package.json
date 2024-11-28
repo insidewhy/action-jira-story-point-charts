@@ -14,6 +14,7 @@
     "test": "pnpm vitest",
     "fix": "pnpm lint && pnpm format",
     "tag": "./scripts/tag.sh",
+    "local-test": "GITHUB_ACTIONS=1 tsx --env-file=.env.test src/index.ts",
     "validate": "pnpm lint-check && pnpm format-check && pnpm type-check && pnpm test run"
   },
   "repository": {
@@ -45,6 +46,7 @@
     "globals": "^15.12.0",
     "munamuna": "^0.2.1",
     "prettier": "3.3.3",
+    "tsx": "^4.19.2",
     "typescript": "5.6.3",
     "typescript-eslint": "^8.12.2",
     "vitest": "^2.1.4"

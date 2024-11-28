@@ -1,3 +1,5 @@
 /node_modules
 /doit.sh
+/.env.test
+/charts
 tsconfig.tsbuildinfo

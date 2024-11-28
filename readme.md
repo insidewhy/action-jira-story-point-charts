@@ -61,3 +61,28 @@ To trigger the workflow manually using the configuration above `github-cli` coul
 ```bash
 gh workflow run chart-bot -f slack-channel C52ZZTO9EAA
 ```
+
+## Testing the script locally
+
+There are unit tests:
+
+```bash
+pnpm test
+```
+
+Or an end-to-end test by creating an environment file at `.env.test` such as:
+
+```
+INPUT_SLACK-CHANNEL=C0962KJPUPM
+INPUT_STORY-POINT-ESTIMATE=5
+INPUT_JIRA-USER=my@email.sg
+INPUT_JIRA-BASE-URL=https://aproject.atlassian.net
+INPUT_JIRA-TOKEN=my_jira_token_goes_here
+INPUT_SLACK-TOKEN=my_slack_token_goes_here
+```
+
+Then run:
+
+```
+pnpm local-test
+```

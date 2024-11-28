@@ -2,7 +2,7 @@ import { JiraFields, Options } from './config'
 
 interface FieldIds {
   storyPoints: string
-  devComplete: string
+  devCompleteTime: string
   startTime: string
 }
 
@@ -38,25 +38,26 @@ async function getCustomFields(
     'field',
   )
   let storyPoints = ''
-  let devComplete = ''
+  let devCompleteTime = ''
   let startTime = ''
   for (const field of fieldMetadata) {
-    if (field.name.toLocaleLowerCase() === fields.storyPoints) storyPoints = field.id
-    else if (field.name.toLocaleLowerCase() === fields.devComplete) devComplete = field.id
-    else if (field.name.toLocaleLowerCase() === fields.startTime) startTime = field.id
+    const fieldName = field.name.toLocaleLowerCase()
+    if (fieldName === fields.storyPoints) storyPoints = field.id
+    else if (fieldName === fields.devCompleteTime) devCompleteTime = field.id
+    else if (fieldName === fields.startTime) startTime = field.id
   }
 
   if (!storyPoints) {
     throw new Error('Could not find "Story Points" field')
   }
-  if (!devComplete) {
+  if (!devCompleteTime) {
     throw new Error('Could not find "Dev Completed Time" field')
   }
   if (!startTime) {
     throw new Error('Could not find "Start time" field')
   }
 
-  return { storyPoints, devComplete, startTime }
+  return { storyPoints, devCompleteTime, startTime }
 }
 
 function fetchIssuesPage(auth: string, baseUrl: string, jql: string, offset = 0) {
@@ -95,7 +96,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
 
     let devCompleteTime: number | undefined
     if (status === statuses.done.name || status === statuses.readyForQA.name) {
-      const devCompletedDate: string | undefined = issue.fields[fieldIds.devComplete]
+      const devCompletedDate: string | undefined = issue.fields[fieldIds.devCompleteTime]
       devCompleteTime = devCompletedDate ? new Date(devCompletedDate).getTime() : undefined
     }
 

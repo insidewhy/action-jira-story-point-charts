@@ -62,6 +62,22 @@ To trigger the workflow manually using the configuration above `github-cli` coul
 gh workflow run chart-bot -f slack-channel C52ZZTO9EAA
 ```
 
+### Advanced configuration
+
+The fields used to determine the story points, start time, and development complete time can be overriden in the `with` fields. The following shows the defaults:
+
+```yaml
+jira-fields: |
+  storyPoints: story points
+  devCompleteTime: development complete time
+  startTime: start time
+```
+
+Note the `|` in the `yaml`, this is because github only supports string action fields so a "yaml like" string must be sent to the action.
+
+The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time` and `Development Complete Time` fields are not available by default.
+If you would appreciate the green and purple lines in your jira charts then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the jira UI.
+
 ## Testing the script locally
 
 There are unit tests:

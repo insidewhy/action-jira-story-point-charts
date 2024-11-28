@@ -16,7 +16,7 @@ interface Statuses {
 
 export interface JiraFields {
   storyPoints: string
-  devComplete: string
+  devCompleteTime: string
   startTime: string
 }
 
@@ -47,7 +47,7 @@ const DEFAULT_STATUSES: Statuses = {
 
 const DEFAULT_JIRA_FIELDS: JiraFields = {
   storyPoints: 'story points',
-  devComplete: 'development complete time',
+  devCompleteTime: 'development complete time',
   startTime: 'start time',
 }
 
@@ -58,9 +58,27 @@ export function parseOptions(): Options {
   const jiraBaseUrl = getInput('jira-base-url', { required: true })
   const jiraToken = getInput('jira-token', { required: true })
   const slackToken = getInput('slack-token', { required: true })
+  const jiraFieldsRaw = getInput('jira-fields')
+
+  const jiraFields = { ...DEFAULT_JIRA_FIELDS }
+  if (jiraFieldsRaw) {
+    for (const rawLine of jiraFieldsRaw.split('\n')) {
+      const line = rawLine.trim()
+      if (!line) continue
+      const [field, rawName] = line.split(/ *: */)
+      const name = rawName?.trim()
+
+      if (
+        !name ||
+        (field !== 'storyPoints' && field !== 'startTime' && field !== 'devCompleteTime')
+      ) {
+        throw new Error(`Invalid line in jira-fields configuration: "${line}"`)
+      }
+      jiraFields[field] = name.toLocaleLowerCase()
+    }
+  }
 
   const storyPointEstimate = storyPointEstimateRaw ? parseInt(storyPointEstimateRaw) : 0
-
   return {
     channel: channel,
     output: OUTPUT_DIRECTORY,
@@ -68,7 +86,7 @@ export function parseOptions(): Options {
     statuses: DEFAULT_STATUSES,
     jiraBaseUrl,
     jiraAuth: Buffer.from(`${jiraUser}:${jiraToken}`).toString('base64'),
-    jiraFields: DEFAULT_JIRA_FIELDS,
+    jiraFields,
     jql: 'fixVersion = earliestUnreleasedVersion()',
     slackToken,
   }

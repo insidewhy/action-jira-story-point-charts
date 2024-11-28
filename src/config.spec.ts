@@ -69,8 +69,8 @@ it('can parse entire config', () => {
 it('can override jira fields', () => {
   mockConfig({
     jiraFields: `
-      storyPoints: your friend
-      devCompleteTime: My Banana
+      story-points: your friend
+      dev-complete-time: My Banana
     `,
   })
 

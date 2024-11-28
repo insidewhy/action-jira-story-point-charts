@@ -66,15 +66,20 @@ export function parseOptions(): Options {
       const line = rawLine.trim()
       if (!line) continue
       const [field, rawName] = line.split(/ *: */)
-      const name = rawName?.trim()
-
-      if (
-        !name ||
-        (field !== 'storyPoints' && field !== 'startTime' && field !== 'devCompleteTime')
-      ) {
+      const name = rawName?.trim().toLowerCase()
+      if (!name) {
         throw new Error(`Invalid line in jira-fields configuration: "${line}"`)
       }
-      jiraFields[field] = name.toLocaleLowerCase()
+
+      if (field === 'story-points') {
+        jiraFields.storyPoints = name
+      } else if (field === 'start-time') {
+        jiraFields.startTime = name
+      } else if (field === 'dev-complete-time') {
+        jiraFields.devCompleteTime = name
+      } else {
+        throw new Error(`Invalid line in jira-fields configuration: "${line}"`)
+      }
     }
   }
 

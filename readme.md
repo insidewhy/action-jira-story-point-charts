@@ -64,21 +64,23 @@ gh workflow run chart-bot -f slack-channel C52ZZTO9EAA
 
 ### Advanced configuration
 
-The fields used to determine the story points, start time, and development complete time can be overriden in the `with` fields. The following shows the defaults:
+The fields used to determine the `story points`, `start time`, and `development complete time` of an issue can be overriden by action inputs. The following shows the defaults:
 
 ```yaml
 jira-fields: |
-  storyPoints: story points
-  devCompleteTime: development complete time
-  startTime: start time
+  story-points: story points
+  dev-complete-time: development complete time
+  start-time: start time
 ```
+
+When the code matches field names in the config to those in Jira it uses a case-insensitive comparison.
 
 Note the `|` in the `yaml`, this is because github only supports string action fields so a "yaml like" string must be sent to the action.
 
 The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time` and `Development Complete Time` fields are not available by default.
-If you would appreciate the green and purple lines in your jira charts then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the jira UI.
+If the green and purple lines would be appreciated then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the Jira workflow configuration UI.
 
-## Testing the script locally
+## Testing the action locally
 
 There are unit tests:
 
@@ -86,7 +88,7 @@ There are unit tests:
 pnpm test
 ```
 
-Or an end-to-end test by creating an environment file at `.env.test` such as:
+Or an end-to-end test can be run by creating an environment file at `.env.test` such as:
 
 ```
 INPUT_SLACK-CHANNEL=C0962KJPUPM

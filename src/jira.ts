@@ -41,9 +41,9 @@ async function getCustomFields(
   let devComplete = ''
   let startTime = ''
   for (const field of fieldMetadata) {
-    if (field.name === fields.storyPoints) storyPoints = field.id
-    else if (field.name === fields.devComplete) devComplete = field.id
-    else if (field.name === fields.startTime) startTime = field.id
+    if (field.name.toLocaleLowerCase() === fields.storyPoints) storyPoints = field.id
+    else if (field.name.toLocaleLowerCase() === fields.devComplete) devComplete = field.id
+    else if (field.name.toLocaleLowerCase() === fields.startTime) startTime = field.id
   }
 
   if (!storyPoints) {

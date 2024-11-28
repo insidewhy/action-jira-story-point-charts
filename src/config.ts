@@ -46,9 +46,9 @@ const DEFAULT_STATUSES: Statuses = {
 }
 
 const DEFAULT_JIRA_FIELDS: JiraFields = {
-  storyPoints: 'Story Points',
-  devComplete: 'Development Complete Time',
-  startTime: 'Start time',
+  storyPoints: 'story points',
+  devComplete: 'development complete time',
+  startTime: 'start time',
 }
 
 export function parseOptions(): Options {

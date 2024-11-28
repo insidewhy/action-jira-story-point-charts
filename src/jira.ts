@@ -2,8 +2,8 @@ import { JiraFields, Options } from './config'
 
 interface FieldIds {
   storyPoints: string
-  devCompleteTime: string
-  startTime: string
+  devCompleteTime?: string
+  startTime?: string
 }
 
 export interface JiraIssue {
@@ -38,8 +38,8 @@ async function getCustomFields(
     'field',
   )
   let storyPoints = ''
-  let devCompleteTime = ''
-  let startTime = ''
+  let devCompleteTime: string | undefined
+  let startTime: string | undefined
   for (const field of fieldMetadata) {
     const fieldName = field.name.toLocaleLowerCase()
     if (fieldName === fields.storyPoints) storyPoints = field.id
@@ -48,13 +48,7 @@ async function getCustomFields(
   }
 
   if (!storyPoints) {
-    throw new Error('Could not find "Story Points" field')
-  }
-  if (!devCompleteTime) {
-    throw new Error('Could not find "Dev Completed Time" field')
-  }
-  if (!startTime) {
-    throw new Error('Could not find "Start time" field')
+    throw new Error(`Could not find "${fields.storyPoints}" field`)
   }
 
   return { storyPoints, devCompleteTime, startTime }
@@ -95,20 +89,24 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
     }
 
     let devCompleteTime: number | undefined
-    if (status === statuses.done.name || status === statuses.readyForQA.name) {
-      const devCompletedDate: string | undefined = issue.fields[fieldIds.devCompleteTime]
-      devCompleteTime = devCompletedDate ? new Date(devCompletedDate).getTime() : undefined
+    if (fieldIds.devCompleteTime) {
+      if (status === statuses.done.name || status === statuses.readyForQA.name) {
+        const devCompletedDate: string | undefined = issue.fields[fieldIds.devCompleteTime]
+        devCompleteTime = devCompletedDate ? new Date(devCompletedDate).getTime() : undefined
+      }
     }
 
     let startedTime: number | undefined
-    if (
-      status === statuses.done.name ||
-      status === statuses.readyForQA.name ||
-      status === statuses.inProgress.name ||
-      status === statuses.inReview.name
-    ) {
-      const startedDate: string | undefined = issue.fields[fieldIds.startTime]
-      startedTime = startedDate ? new Date(startedDate).getTime() : undefined
+    if (fieldIds.startTime) {
+      if (
+        status === statuses.done.name ||
+        status === statuses.readyForQA.name ||
+        status === statuses.inProgress.name ||
+        status === statuses.inReview.name
+      ) {
+        const startedDate: string | undefined = issue.fields[fieldIds.startTime]
+        startedTime = startedDate ? new Date(startedDate).getTime() : undefined
+      }
     }
 
     processedIssues.push({

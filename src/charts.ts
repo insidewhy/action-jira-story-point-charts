@@ -119,13 +119,10 @@ export async function makeRemainingStoryPointsLineChart(
     .map(([time, pointFields]) => ({ time, ...pointFields }))
     .sort((a, b) => a.time - b.time)
 
-  const pointEvents: { started: number[]; developed: number[]; done: number[] } = {
-    started: [],
-    developed: [],
-    done: [],
-  }
+  const pointEvents: { started?: number[]; developed?: number[]; done?: number[] } = {}
 
-  const fillInPoints = (points: number[], maxIndex: number) => {
+  const fillInPoints = (points: number[] | undefined, maxIndex: number) => {
+    if (!points) return
     if (points.length === 0) points.push(totalStoryPoints)
     for (let i = points.length; i <= maxIndex; ++i) {
       points[i] = points[i - 1]
@@ -135,32 +132,68 @@ export async function makeRemainingStoryPointsLineChart(
 
   for (const { time, started, developed, done } of sortedEvents) {
     const relativeTime = Math.ceil(time - firstTime)
-    fillInPoints(pointEvents.started, relativeTime)
-    fillInPoints(pointEvents.developed, relativeTime)
-    fillInPoints(pointEvents.done, relativeTime)
-
-    pointEvents.started[relativeTime] -= started
-    pointEvents.developed[relativeTime] -= developed
-    pointEvents.done[relativeTime] -= done
+    if (started) {
+      if (!pointEvents.started) pointEvents.started = []
+      fillInPoints(pointEvents.started, relativeTime)
+      pointEvents.started[relativeTime] -= started
+    }
+    if (developed) {
+      if (!pointEvents.developed) pointEvents.developed = []
+      fillInPoints(pointEvents.developed, relativeTime)
+      pointEvents.developed[relativeTime] -= developed
+    }
+    if (done) {
+      if (!pointEvents.done) pointEvents.done = []
+      fillInPoints(pointEvents.done, relativeTime)
+      pointEvents.done[relativeTime] -= done
+    }
   }
+
+  const maxLength = Math.max(
+    pointEvents.started?.length ?? 0,
+    pointEvents.developed?.length ?? 0,
+    pointEvents.done?.length ?? 0,
+  )
+  fillInPoints(pointEvents.started, maxLength - 1)
+  fillInPoints(pointEvents.developed, maxLength - 1)
+  fillInPoints(pointEvents.done, maxLength - 1)
 
   let minY = 0
   let maxY = totalStoryPoints
   if (cutOffFactor) {
     const cutOffPoint = -cutOffFactor - 1
-    pointEvents.started = pointEvents.started.slice(cutOffPoint)
-    pointEvents.developed = pointEvents.developed.slice(cutOffPoint)
-    pointEvents.done = pointEvents.done.slice(cutOffPoint)
-    minY = pointEvents.started.at(-1)!
-    maxY = pointEvents.done[0]
+    pointEvents.started = pointEvents.started?.slice(cutOffPoint)
+    pointEvents.developed = pointEvents.developed?.slice(cutOffPoint)
+    pointEvents.done = pointEvents.done?.slice(cutOffPoint)
+    minY = Math.min(
+      pointEvents.started?.at(-1) ?? Number.MAX_SAFE_INTEGER,
+      pointEvents.developed?.at(-1) ?? Number.MAX_SAFE_INTEGER!,
+      pointEvents.done?.at(-1) ?? Number.MAX_SAFE_INTEGER!,
+    )
+    maxY = Math.max(
+      pointEvents.started?.[0] ?? 0,
+      pointEvents.developed?.[0] ?? 0,
+      pointEvents.done?.[0] ?? 0,
+    )
   }
 
   const { statuses } = options
-  const lineChartTheme = {
-    xyChart: {
-      plotColorPalette: `${statuses.inProgress.color},${statuses.readyForQA.color},${statuses.done.color}`,
-    },
+  const plotColorPalette: string[] = []
+  const lines: string[] = []
+  if (pointEvents.started) {
+    plotColorPalette.push(statuses.inProgress.color)
+    lines.push(`  line [${pointEvents.started.join(', ')}]`)
   }
+  if (pointEvents.developed) {
+    plotColorPalette.push(statuses.readyForQA.color)
+    lines.push(`  line [${pointEvents.developed.join(', ')}]`)
+  }
+  if (pointEvents.done) {
+    plotColorPalette.push(statuses.done.color)
+    lines.push(`  line [${pointEvents.done.join(', ')}]`)
+  }
+
+  const lineChartTheme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
   const ucFirstLabel = ucFirst(label)
   const xAxis = rangeTo((cutOffFactor ?? Math.ceil(sortedEvents.at(-1)!.time - firstTime)) + 1)
@@ -172,9 +205,7 @@ export async function makeRemainingStoryPointsLineChart(
     `  title "Story points remaining by ${label}"\n` +
     `  x-axis [${xAxis}]\n` +
     `  y-axis "Story points" ${minY} --> ${maxY}\n` +
-    `  line [${pointEvents.started.join(', ')}]\n` +
-    `  line [${pointEvents.developed.join(', ')}]\n` +
-    `  line [${pointEvents.done.join(', ')}]\n`
+    lines.join('\n')
 
   const fileNamePrefix = `remaining-storypoints-by-${label}`
   const mmdPath = pathJoin(options.output, `${fileNamePrefix}.mmd`)

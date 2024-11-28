@@ -37,12 +37,12 @@ export interface Options {
 const OUTPUT_DIRECTORY = 'charts'
 
 const DEFAULT_STATUSES: Statuses = {
-  draft: { name: 'Draft', color: '#388bff' },
-  todo: { name: 'To Do', color: '#f15a50' },
-  inProgress: { name: 'In Progress', color: '#038411' },
-  inReview: { name: 'In Review', color: '#ff8b00' },
-  readyForQA: { name: 'Ready for QA', color: '#9c1de9' },
-  done: { name: 'Done', color: '#43acd9' },
+  draft: { name: 'draft', color: '#388bff' },
+  todo: { name: 'to do', color: '#f15a50' },
+  inProgress: { name: 'in progress', color: '#038411' },
+  inReview: { name: 'in review', color: '#ff8b00' },
+  readyForQA: { name: 'ready for qa', color: '#9c1de9' },
+  done: { name: 'done', color: '#43acd9' },
 }
 
 const DEFAULT_JIRA_FIELDS: JiraFields = {
@@ -66,7 +66,7 @@ export function parseOptions(): Options {
       const line = rawLine.trim()
       if (!line) continue
       const [field, rawName] = line.split(/ *: */)
-      const name = rawName?.trim().toLowerCase()
+      const name = rawName?.trim().toLocaleLowerCase()
       if (!name) {
         throw new Error(`Invalid line in jira-fields configuration: "${line}"`)
       }

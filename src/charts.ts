@@ -33,11 +33,12 @@ export async function makeStoryPointsPiChart(
 ): Promise<Chart> {
   const pointsByStatus = getPointsByStatus(issues)
 
-  const pieChartEntries = Object.values(options.statuses).reduce(
-    (acc: Array<{ name: string; color: string; points: number }>, { name, color }) => {
-      const points = pointsByStatus.get(name)
-      if (!points) return acc
-      acc.push({ name, color, points })
+  const pieChartEntries = [...pointsByStatus.entries()].reduce(
+    (acc: Array<{ name: string; color?: string; points: number }>, [name, points]) => {
+      const associatedStatus = Object.values(options.statuses).find(
+        ({ name: statusName }) => statusName === name.toLocaleLowerCase(),
+      )
+      acc.push({ name, color: associatedStatus?.color ?? undefined, points })
       return acc
     },
     [],
@@ -46,7 +47,9 @@ export async function makeStoryPointsPiChart(
   const theme = { ...PIE_CHART_THEME } as any
   // mermaid forces ordering of segments so have to sort here
   for (const [idx, entry] of pieChartEntries.sort((a, b) => b.points - a.points).entries()) {
-    theme[`pie${idx + 1}`] = entry.color
+    if (entry.color) {
+      theme[`pie${idx + 1}`] = entry.color
+    }
   }
   const mmd =
     `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +

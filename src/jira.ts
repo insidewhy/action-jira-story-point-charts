@@ -81,16 +81,17 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
     if (storyPoints === 0) continue
 
     const status = issue.fields.status.name
+    const lcStatus = status.toLocaleLowerCase()
 
     let resolutionTime: number | undefined
-    if (status === statuses.done.name) {
+    if (lcStatus === statuses.done.name) {
       const resolutionDate: string | undefined = issue.fields.resolutiondate
       resolutionTime = resolutionDate ? new Date(resolutionDate).getTime() : undefined
     }
 
     let devCompleteTime: number | undefined
     if (fieldIds.devCompleteTime) {
-      if (status === statuses.done.name || status === statuses.readyForQA.name) {
+      if (lcStatus === statuses.done.name || lcStatus === statuses.readyForQA.name) {
         const devCompletedDate: string | undefined = issue.fields[fieldIds.devCompleteTime]
         devCompleteTime = devCompletedDate ? new Date(devCompletedDate).getTime() : undefined
       }
@@ -99,10 +100,10 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
     let startedTime: number | undefined
     if (fieldIds.startTime) {
       if (
-        status === statuses.done.name ||
-        status === statuses.readyForQA.name ||
-        status === statuses.inProgress.name ||
-        status === statuses.inReview.name
+        lcStatus === statuses.done.name ||
+        lcStatus === statuses.readyForQA.name ||
+        lcStatus === statuses.inProgress.name ||
+        lcStatus === statuses.inReview.name
       ) {
         const startedDate: string | undefined = issue.fields[fieldIds.startTime]
         startedTime = startedDate ? new Date(startedDate).getTime() : undefined

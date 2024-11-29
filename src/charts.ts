@@ -132,9 +132,15 @@ export async function makeRemainingStoryPointsLineChart(
     }
   }
   const firstTime = sortedEvents[0].time
+  // when a cut off factor is used then the chart should end at the current time and
+  // buckets must all be aligned with the current time rather than the absolute first time
+  const lastTime = cutOffFactor ? Date.now() / timePeriod : sortedEvents.at(-1)!.time
+  const firstTimeRefPoint = cutOffFactor
+    ? firstTime - (1 - ((lastTime - firstTime) % 1))
+    : firstTime
 
   for (const { time, started, developed, done } of sortedEvents) {
-    const relativeTime = Math.ceil(time - firstTime)
+    const relativeTime = Math.ceil(time - firstTimeRefPoint)
     if (started) {
       if (!pointEvents.started) pointEvents.started = []
       fillInPoints(pointEvents.started, relativeTime)
@@ -152,14 +158,10 @@ export async function makeRemainingStoryPointsLineChart(
     }
   }
 
-  const maxLength = Math.max(
-    pointEvents.started?.length ?? 0,
-    pointEvents.developed?.length ?? 0,
-    pointEvents.done?.length ?? 0,
-  )
-  fillInPoints(pointEvents.started, maxLength - 1)
-  fillInPoints(pointEvents.developed, maxLength - 1)
-  fillInPoints(pointEvents.done, maxLength - 1)
+  const bucketCount = Math.ceil(lastTime - firstTime)
+  fillInPoints(pointEvents.started, bucketCount)
+  fillInPoints(pointEvents.developed, bucketCount)
+  fillInPoints(pointEvents.done, bucketCount)
 
   let minY = 0
   let maxY = totalStoryPoints
@@ -199,7 +201,7 @@ export async function makeRemainingStoryPointsLineChart(
   const lineChartTheme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
   const ucFirstLabel = ucFirst(label)
-  const xAxis = rangeTo((cutOffFactor ?? Math.ceil(sortedEvents.at(-1)!.time - firstTime)) + 1)
+  const xAxis = rangeTo((cutOffFactor ?? bucketCount) + 1)
     .map((i) => `"${ucFirstLabel} ${i}"`)
     .join(', ')
   const mmd =

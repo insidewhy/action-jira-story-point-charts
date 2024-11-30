@@ -1,12 +1,40 @@
 # action-jira-story-point-charts
 
-Generate story point charts from Jira issues and post them to a slack channel.
+A github action to generate story point charts from Jira issues and post them to a slack channel.
 
 These are examples of what the charts posted may look like:
 
-![Story points by status](docs/storypoints-by-status-pie.png)
-![Remaining story points by week](docs/remaining-storypoints-by-week.png)
-![Story points by day](docs/remaining-storypoints-by-day.png)
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"pieStrokeColor":"white","pieOuterStrokeColor":"white","pieSectionTextColor":"white","pieOpacity":1,"pie1":"#43acd9","pie2":"#f15a50","pie3":"#038411","pie4":"#ff8b00","pie5":"#9c1de9"}}}%%
+pie showData title Story points by status
+  "Done": 133
+  "To Do": 57
+  "In Progress": 44
+  "In Review": 10
+  "Ready for QA": 9
+```
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"xyChart":{"plotColorPalette":"#038411,#9c1de9,#43acd9"}}}}%%
+xychart-beta
+  title "Story points remaining by week"
+  x-axis ["Week 0", "Week 1", "Week 2", "Week 3", "Week 4", "Week 5", "Week 6", "Week 7", "Week 8"]
+  y-axis "Story points" 0 --> 253
+  line [245, 228, 203, 180, 180, 160, 129, 81, 57]
+  line [253, 242, 223, 190, 190, 173, 149, 127, 111]
+  line [253, 244, 223, 190, 190, 174, 173, 155, 120]
+```
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"xyChart":{"plotColorPalette":"#038411,#9c1de9,#43acd9"}}}}%%
+xychart-beta
+  title "Story points remaining by day"
+  x-axis ["Day 0", "Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"]
+  y-axis "Story points" 57 --> 155
+  line [81, 81, 81, 81, 81, 57, 57, 57]
+  line [127, 127, 127, 127, 127, 112, 112, 111]
+  line [155, 155, 155, 155, 153, 121, 121, 120]
+```
 
 - The blue lines show the remaining story points that have not been completed (i.e. made it to `Done` status).
 - The purple lines show the remaining story points that have not been developed (i.e. made it to `In Review` or `Ready for QA` status).
@@ -62,7 +90,9 @@ To trigger the workflow manually using the configuration above `github-cli` coul
 gh workflow run chart-bot -f slack-channel C52ZZTO9EAA
 ```
 
-### Advanced configuration
+### Extra configuration
+
+#### jira-fields
 
 The fields used to determine the `story points`, `start time`, and `development complete time` of an issue can be overriden by action inputs. The following shows the defaults:
 
@@ -73,12 +103,37 @@ jira-fields: |
   start-time: start time
 ```
 
-When the code matches field names in the config to those in Jira it uses a case-insensitive comparison.
+Field names in the config are matched to those in Jira using a case-insensitive comparison.
 
 Note the `|` in the `yaml`, this is because github only supports string action fields so a "yaml like" string must be sent to the action.
 
 The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time` and `Development Complete Time` fields are not available by default.
 If the green and purple lines would be appreciated then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the Jira workflow configuration UI.
+
+#### jira-statuses
+
+The various status names and colors can be overridden by action inputs. The following shows the defaults:
+
+```yaml
+jira-statuses: |
+  draft: draft #388bff
+  todo: to do #f15a50
+  in-progress: in progress #038411
+  in-review: in review #ff8b00
+  ready-for-qa: ready for qa #9c1de9
+  done: done #43acd9
+```
+
+For each status, just the status name can be overridden, just the color can be overridden, or both the color and the status can be overridden:
+
+```yaml
+jira-statuses: |
+  done: Complete
+  in-progress: #f9f9f9
+  ready-for-qa: Ready for Test #aaaaaa
+```
+
+Statuses in the config are matched to those in Jira using a case-insensitive comparison.
 
 ## Testing the action locally
 

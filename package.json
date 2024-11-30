@@ -1,6 +1,6 @@
 {
   "name": "action-jira-story-point-charts",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Generate story point charts from jira issues and post them to slack",
   "type": "module",
   "main": "lib/index.js",

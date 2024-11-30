@@ -24,6 +24,7 @@ runs:
         INPUT_JIRA-TOKEN: ${{inputs.jira-token}}
         INPUT_SLACK-TOKEN: ${{inputs.slack-token}}
         INPUT_JIRA-FIELDS: ${{inputs.jira-fields}}
+        INPUT_JIRA-STATUSES: ${{inputs.jira-fields}}
       run: |
         cd ${{ github.action_path }}
         node lib/index.mjs
@@ -50,3 +51,5 @@ inputs:
     required: true
   jira-fields:
     description: Customise jira fields used for story points and times
+  jira-statuses:
+    description: Customise jira statuses

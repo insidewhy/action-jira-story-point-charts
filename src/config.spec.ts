@@ -13,10 +13,20 @@ beforeEach(() => {
 })
 
 type MockConfig = Partial<
-  Omit<Options, 'storyPointEstimate' | 'output' | 'statuses' | 'jiraAuth' | 'jiraFields' | 'jql'>
+  Omit<
+    Options,
+    | 'storyPointEstimate'
+    | 'output'
+    | 'statuses'
+    | 'jiraAuth'
+    | 'jiraFields'
+    | 'jiraStatuses'
+    | 'jql'
+  >
 > & {
   storyPointEstimate?: string
   jiraFields?: string
+  jiraStatuses?: string
 }
 
 const DEFAULT_CONFIG = {
@@ -37,6 +47,7 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   getInputMock.mockReturnValueOnce(mockedConfig.jiraToken)
   getInputMock.mockReturnValueOnce(mockedConfig.slackToken)
   getInputMock.mockReturnValueOnce(mockedConfig.jiraFields ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.jiraStatuses ?? '')
 }
 
 it('can parse entire config', () => {
@@ -79,5 +90,25 @@ it('can override jira fields', () => {
     storyPoints: 'your friend',
     devCompleteTime: 'my banana',
     startTime: 'start time',
+  })
+})
+
+it('can override jira statuses', () => {
+  mockConfig({
+    jiraStatuses: `
+      done: Complete
+      in-progress: #f9f9f9
+      ready-for-qa: Ready for Test #aaaaaa
+    `,
+  })
+
+  const config = parseOptions()
+  expect(config.statuses).toEqual({
+    draft: { name: 'draft', color: '#388bff' },
+    todo: { name: 'to do', color: '#f15a50' },
+    inProgress: { name: 'in progress', color: '#f9f9f9' },
+    inReview: { name: 'in review', color: '#ff8b00' },
+    readyForQA: { name: 'ready for test', color: '#aaaaaa' },
+    done: { name: 'complete', color: '#43acd9' },
   })
 })

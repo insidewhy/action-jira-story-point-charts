@@ -168,3 +168,49 @@ Then run:
 ```
 pnpm local-test
 ```
+
+## Philosophy
+
+Consider the following releases chart at week one, at this time there were 20 story points in the release on day 0 and 10 story points remaining at the end of the week:
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"xyChart":{"plotColorPalette":"#43acd9"}}}}%%
+xychart-beta
+  title "Story points remaining by week"
+  x-axis ["Week 0", "Week 1"]
+  y-axis "Story points" 0 --> 20
+  line [20, 10]
+```
+
+During week two an additional 5 story points were added to the release and 5 story points were completed, now the chart looks like this:
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"xyChart":{"plotColorPalette":"#43acd9"}}}}%%
+xychart-beta
+  title "Story points remaining by week"
+  x-axis ["Week 0", "Week 1", "Week 2"]
+  y-axis "Story points" 0 --> 25
+  line [25, 15, 10]
+```
+
+The chart considers that all story points that are currently in the release were there from day 0, while this misses data about how and when story points were added to a release, it allows the rate of progress to be accurately measured.
+If the chart instead showed story points being added and removed the chart would look like this:
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"xyChart":{"plotColorPalette":"#43acd9"}}}}%%
+xychart-beta
+  title "Story points remaining by week"
+  x-axis ["Week 0", "Week 1", "Week 2"]
+  y-axis "Story points" 0 --> 20
+  line [20, 10, 10]
+```
+
+The 5 story points being added and the 5 story points completed during week two lead to a flat line, from the above chart it's impossible to know what occurred between the following two scenarios:
+
+- The team completed no work
+- The team did some work but an equal amount of work was added to the release.
+
+Perfect information is rarely available from the beginning of a release.
+It is hard for many teams to accurately track what work should be present in a sprint before it begins let alone an entire release, this often leads to sprint burn down charts that remain flat or increase over time.
+By considering that the current story points in a release should always have been there, this can lead to more accurate tracking of progress towards completion.
+Given that charts are being posted on a recurring basis into one or more slack channels, information about story points being added to a release can still be determined by comparing charts.

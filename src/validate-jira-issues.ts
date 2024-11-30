@@ -2,7 +2,7 @@ import { parseOptions } from './config'
 import { fetchIssues } from './jira'
 
 async function validateJiraIssues() {
-  const options = await parseOptions()
+  const options = parseOptions()
 
   const issues = await fetchIssues(options)
 

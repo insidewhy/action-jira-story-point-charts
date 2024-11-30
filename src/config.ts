@@ -51,6 +51,8 @@ const DEFAULT_JIRA_FIELDS: JiraFields = {
   startTime: 'start time',
 }
 
+const DEFAULT_JQL = 'fixVersion = earliestUnreleasedVersion()'
+
 interface ConfigValue {
   name: string
   value: string
@@ -83,6 +85,7 @@ export function parseOptions(): Options {
   const slackToken = getInput('slack-token', { required: true })
   const jiraFieldsRaw = getInput('jira-fields')
   const jiraStatusesRaw = getInput('jira-statuses')
+  const jql = getInput('jql') || DEFAULT_JQL
 
   const jiraFields = { ...DEFAULT_JIRA_FIELDS }
   if (jiraFieldsRaw) {
@@ -143,8 +146,8 @@ export function parseOptions(): Options {
     statuses,
     jiraBaseUrl,
     jiraAuth: Buffer.from(`${jiraUser}:${jiraToken}`).toString('base64'),
-    jiraFields,
-    jql: 'fixVersion = earliestUnreleasedVersion()',
     slackToken,
+    jiraFields,
+    jql,
   }
 }

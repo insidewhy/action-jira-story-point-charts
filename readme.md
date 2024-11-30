@@ -135,6 +135,15 @@ jira-statuses: |
 
 Statuses in the config are matched to those in Jira using a case-insensitive comparison.
 
+#### jql
+
+By the jql query for selecting issues is `fixVersion = earliestUnreleasedVersion()`.
+This can be overridden using the `jql` input:
+
+```yaml
+jql: fixVersion = "release-1.0"
+```
+
 ## Testing the action locally
 
 There are unit tests:

@@ -15,13 +15,7 @@ beforeEach(() => {
 type MockConfig = Partial<
   Omit<
     Options,
-    | 'storyPointEstimate'
-    | 'output'
-    | 'statuses'
-    | 'jiraAuth'
-    | 'jiraFields'
-    | 'jiraStatuses'
-    | 'jql'
+    'storyPointEstimate' | 'output' | 'statuses' | 'jiraAuth' | 'jiraFields' | 'jiraStatuses'
   >
 > & {
   storyPointEstimate?: string
@@ -48,6 +42,7 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   getInputMock.mockReturnValueOnce(mockedConfig.slackToken)
   getInputMock.mockReturnValueOnce(mockedConfig.jiraFields ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.jiraStatuses ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.jql ?? '')
 }
 
 it('can parse entire config', () => {
@@ -111,4 +106,11 @@ it('can override jira statuses', () => {
     readyForQA: { name: 'ready for test', color: '#aaaaaa' },
     done: { name: 'complete', color: '#43acd9' },
   })
+})
+
+it('can override jql used to query issues', () => {
+  const jql = 'fixVersion = "pump"'
+  mockConfig({ jql })
+  const config = parseOptions()
+  expect(config.jql).toEqual(jql)
 })

@@ -17,6 +17,24 @@ const PIE_CHART_THEME = {
   pieOpacity: 1,
 }
 
+async function makeChartFiles(
+  mmd: string,
+  fileNamePrefix: string,
+  options: Options,
+): Promise<Chart> {
+  const mmdPath = pathJoin(options.output, `${fileNamePrefix}.mmd`)
+  await writeFile(mmdPath, mmd)
+
+  if (options.noImages) {
+    return { filePath: mmdPath, mimeType: 'text/vnd.mermaid' }
+  } else {
+    const imagePath = pathJoin(options.output, `${fileNamePrefix}.png`) as `${string}.png`
+
+    await mermaidRun(mmdPath, imagePath)
+    return { filePath: imagePath, mimeType: 'image/png' }
+  }
+}
+
 function getPointsByStatus(issues: JiraIssue[]): Map<string, number> {
   const pointsByStatus = new Map<string, number>()
   for (const issue of issues) {
@@ -30,8 +48,10 @@ function getPointsByStatus(issues: JiraIssue[]): Map<string, number> {
 export async function makeStoryPointsPiChart(
   issues: JiraIssue[],
   options: Options,
-): Promise<Chart> {
+): Promise<Chart | undefined> {
   const pointsByStatus = getPointsByStatus(issues)
+
+  if (pointsByStatus.size === 0) return undefined
 
   const pieChartEntries = [...pointsByStatus.entries()].reduce(
     (acc: Array<{ name: string; color?: string; points: number }>, [name, points]) => {
@@ -56,18 +76,7 @@ export async function makeStoryPointsPiChart(
     `pie showData title Story points by status\n` +
     pieChartEntries.map((entry) => `  "${entry.name}": ${entry.points}\n`).join('')
 
-  const fileNamePrefix = 'storypoints-by-status-pie'
-  const mmdPath = pathJoin(options.output, `${fileNamePrefix}.mmd`)
-  await writeFile(mmdPath, mmd)
-
-  if (options.noImages) {
-    return { filePath: mmdPath, mimeType: 'text/vnd.mermaid' }
-  } else {
-    const imagePath = pathJoin(options.output, `${fileNamePrefix}.png`) as `${string}.png`
-
-    await mermaidRun(mmdPath, imagePath)
-    return { filePath: imagePath, mimeType: 'image/png' }
-  }
+  return makeChartFiles(mmd, 'storypoints-by-status-pie', options)
 }
 
 const rangeTo = (limit: number) => Array.from(new Array(limit), (_, i) => i)
@@ -80,7 +89,7 @@ export async function makeRemainingStoryPointsLineChart(
   timePeriod: number,
   label: 'week' | 'day',
   cutOffFactor?: number,
-): Promise<Chart> {
+): Promise<Chart | undefined> {
   const events = new Map<number, { started: number; developed: number; done: number }>()
   let totalStoryPoints = 0
   for (const issue of issues) {
@@ -117,6 +126,8 @@ export async function makeRemainingStoryPointsLineChart(
       }
     }
   }
+
+  if (events.size === 0) return undefined
 
   const sortedEvents = [...events.entries()]
     .map(([time, pointFields]) => ({ time, ...pointFields }))
@@ -198,29 +209,63 @@ export async function makeRemainingStoryPointsLineChart(
     lines.push(`  line [${pointEvents.done.join(', ')}]`)
   }
 
-  const lineChartTheme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
+  const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
   const ucFirstLabel = ucFirst(label)
   const xAxis = rangeTo((cutOffFactor ?? bucketCount) + 1)
     .map((i) => `"${ucFirstLabel} ${i}"`)
     .join(', ')
   const mmd =
-    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(lineChartTheme)}}}%%\n` +
+    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
     `xychart-beta\n` +
     `  title "Story points remaining by ${label}"\n` +
     `  x-axis [${xAxis}]\n` +
     `  y-axis "Story points" ${minY} --> ${maxY}\n` +
     lines.join('\n')
 
-  const fileNamePrefix = `remaining-storypoints-by-${label}`
-  const mmdPath = pathJoin(options.output, `${fileNamePrefix}.mmd`)
-  await writeFile(mmdPath, mmd)
+  return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options)
+}
 
-  if (options.noImages) {
-    return { filePath: mmdPath, mimeType: 'text/vnd.mermaid' }
-  } else {
-    const imagePath = pathJoin(options.output, `${fileNamePrefix}.png`) as `${string}.png`
-    await mermaidRun(mmdPath, imagePath)
-    return { filePath: imagePath, mimeType: 'image/png' }
+export async function makeOpenIssuesChart(
+  issues: JiraIssue[],
+  options: Options,
+): Promise<Chart | undefined> {
+  const openIssues = new Map<string, { inReview: boolean; days: number }>()
+  const millisecondsInADay = 24 * 60 * 60_000
+  const now = Date.now()
+  const { statuses } = options
+
+  for (const issue of issues) {
+    const lcStatus = issue.status.toLocaleLowerCase()
+
+    if (!issue.devCompleteTime) continue
+
+    const inReview = lcStatus === statuses.inReview.name
+    if (lcStatus === statuses.readyForQA.name || inReview) {
+      const daysInStatus = (now - issue.devCompleteTime) / millisecondsInADay
+      openIssues.set(issue.key, { inReview, days: daysInStatus })
+    }
   }
+
+  if (openIssues.size === 0) return undefined
+
+  const sorted = [...openIssues.entries()]
+    .map(([status, stat]) => ({ status, ...stat }))
+    .sort((a, b) => b.days - a.days)
+  const theme = {
+    xyChart: { plotColorPalette: `${statuses.inReview.color}, ${statuses.readyForQA.color}` },
+  }
+  const inReviewBar = sorted.map((stat) => (stat.inReview ? stat.days : 0))
+  const readyForQABar = sorted.map((stat) => (stat.inReview ? 0 : stat.days))
+
+  const mmd =
+    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
+    `xychart-beta\n` +
+    `  title "Issues in review or ready for QA"\n` +
+    `  x-axis [${[...sorted.map(({ status }) => status)].join(', ')}]\n` +
+    `  y-axis "Number of days waiting" 0 --> ${sorted[0].days}\n` +
+    `  bar [${inReviewBar.join(', ')}]\n` +
+    `  bar [${readyForQABar.join(', ')}]\n`
+
+  return makeChartFiles(mmd, 'open-issues', options)
 }

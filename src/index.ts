@@ -1,6 +1,10 @@
 import { mkdir } from 'node:fs/promises'
 
-import { makeRemainingStoryPointsLineChart, makeStoryPointsPiChart } from './charts'
+import {
+  makeOpenIssuesChart,
+  makeRemainingStoryPointsLineChart,
+  makeStoryPointsPiChart,
+} from './charts'
 import { Options, parseOptions } from './config'
 import { fetchIssues } from './jira'
 import { postChartToChannel } from './slack'
@@ -24,10 +28,15 @@ async function runChartBot(options: Options) {
     'day',
     7,
   )
+  const openIssuesChart = await makeOpenIssuesChart(issues, options)
 
   const { channel } = options
   if (channel) {
-    await postChartToChannel(options.slackToken, channel, [byDayChart, pieChart, byWeekChart])
+    await postChartToChannel(
+      options.slackToken,
+      channel,
+      [byDayChart, pieChart, byWeekChart, openIssuesChart].filter((chart) => chart !== undefined),
+    )
   }
 }
 

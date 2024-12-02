@@ -320,7 +320,9 @@ export async function makeOpenIssuesChart(
     xyChart: { plotColorPalette: `${statuses.inReview.color}, ${statuses.readyForQA.color}` },
   }
   const inReviewBar = sorted.map((stat) => stat.daysReadyForReview)
-  const readyForQABar = sorted.map((stat) => stat.daysReadyForQA)
+  // for some reason mermaid shows a small bar even when the value is set to 0, setting it to
+  // -1 works around this, mermaid issues an error about an invalid rect but it looks better
+  const readyForQABar = sorted.map((stat) => (stat.daysReadyForQA === 0 ? -1 : stat.daysReadyForQA))
   const maxX = Math.max(sorted[0].daysReadyForReview, sorted[0].daysReadyForQA)
 
   const mmd =

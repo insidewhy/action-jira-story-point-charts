@@ -36,9 +36,22 @@ xychart-beta
   line [155, 155, 155, 155, 153, 121, 121, 120]
 ```
 
-- The blue lines show the remaining story points that have not been completed (i.e. made it to `Done` status).
-- The purple lines show the remaining story points that have not been developed (i.e. made it to `In Review` or `Ready for QA` status).
-- The green lines show the remaining story points that have not been started (i.e. made it to `In Progress` status).
+- The blue lines/segments show the remaining story points that have not been completed (i.e. made it to `Done` status).
+- The purple lines/segments show the remaining story points that have not been developed (i.e. made it to `In Review` or `Ready for QA` status).
+- The green lines/segments show the remaining story points that have not been started (i.e. made it to `In Progress` status).
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {"xyChart":{"plotColorPalette":"#ff8b00, #9c1de9", "plotReservedSpacePercent": 0}}}}%%
+xychart-beta
+  title "Issues in review or ready for QA"
+  x-axis [PJ-42, PJ-19, PJ-6, PJ-14, PJ-16]
+  y-axis "Number of days in status" 0 --> 4
+  bar [4, 3.5, 3, 1, 0]
+  bar [1.5, 3, -1, 0.2, 0.5]
+```
+
+- The purple bars represent the number of days that issues have been ready for QA.
+- The orange bars represent the number of days that issues have been in review.
 
 ## Installation
 

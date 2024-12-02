@@ -2,6 +2,7 @@ import { JiraFields, Options } from './config'
 
 interface FieldIds {
   storyPoints: string
+  readyForReviewTime?: string
   devCompleteTime?: string
   startTime?: string
 }
@@ -12,6 +13,7 @@ export interface JiraIssue {
   status: string
   storyPoints: number
   resolutionTime: number | undefined
+  readyForReviewTime: number | undefined
   devCompleteTime: number | undefined
   startedTime: number | undefined
 }
@@ -40,18 +42,20 @@ async function getCustomFields(
   let storyPoints = ''
   let devCompleteTime: string | undefined
   let startTime: string | undefined
+  let readyForReviewTime: string | undefined
   for (const field of fieldMetadata) {
     const fieldName = field.name.toLocaleLowerCase()
     if (fieldName === fields.storyPoints) storyPoints = field.id
     else if (fieldName === fields.devCompleteTime) devCompleteTime = field.id
     else if (fieldName === fields.startTime) startTime = field.id
+    else if (fieldName === fields.readyForReviewTime) readyForReviewTime = field.id
   }
 
   if (!storyPoints) {
     throw new Error(`Could not find "${fields.storyPoints}" field`)
   }
 
-  return { storyPoints, devCompleteTime, startTime }
+  return { storyPoints, devCompleteTime, readyForReviewTime, startTime }
 }
 
 function fetchIssuesPage(auth: string, baseUrl: string, jql: string, offset = 0) {
@@ -97,13 +101,25 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
       }
     }
 
+    let readyForReviewTime: number | undefined
+    if (fieldIds.readyForReviewTime) {
+      if (
+        lcStatus === statuses.done.name ||
+        lcStatus === statuses.readyForQA.name ||
+        lcStatus === statuses.inReview.name
+      ) {
+        const readyForReviewDate: string | undefined = issue.fields[fieldIds.readyForReviewTime]
+        readyForReviewTime = readyForReviewDate ? new Date(readyForReviewDate).getTime() : undefined
+      }
+    }
+
     let startedTime: number | undefined
     if (fieldIds.startTime) {
       if (
         lcStatus === statuses.done.name ||
         lcStatus === statuses.readyForQA.name ||
-        lcStatus === statuses.inProgress.name ||
-        lcStatus === statuses.inReview.name
+        lcStatus === statuses.inReview.name ||
+        lcStatus === statuses.inProgress.name
       ) {
         const startedDate: string | undefined = issue.fields[fieldIds.startTime]
         startedTime = startedDate ? new Date(startedDate).getTime() : undefined
@@ -117,6 +133,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
       storyPoints,
       resolutionTime,
       devCompleteTime,
+      readyForReviewTime,
       startedTime,
     })
   }

@@ -100,6 +100,7 @@ The fields used to determine the `story points`, `start time`, and `development 
 jira-fields: |
   story-points: story points
   dev-complete-time: development complete time
+  ready-for-review-time: ready for review time
   start-time: start time
 ```
 
@@ -107,8 +108,8 @@ Field names in the config are matched to those in Jira using a case-insensitive 
 
 Note the `|` in the `yaml`, this is because github only supports string action fields so a "yaml like" string must be sent to the action.
 
-The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time` and `Development Complete Time` fields are not available by default.
-If the green and purple lines would be appreciated then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the Jira workflow configuration UI.
+The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time`, `Ready For Review Time` and `Development Complete Time` fields are not available by default.
+If the green, orange and purple lines would be appreciated then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the Jira workflow configuration UI.
 
 #### jira-statuses
 

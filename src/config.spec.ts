@@ -57,6 +57,7 @@ it('can parse entire config', () => {
     jiraFields: {
       storyPoints: 'story points',
       devCompleteTime: 'development complete time',
+      readyForReviewTime: 'ready for review time',
       startTime: 'start time',
     },
     slackToken: DEFAULT_CONFIG.slackToken,
@@ -76,14 +77,15 @@ it('can override jira fields', () => {
   mockConfig({
     jiraFields: `
       story-points: your friend
-      dev-complete-time: My Banana
+      ready-for-review-time: My Banana
     `,
   })
 
   const config = parseOptions()
   expect(config.jiraFields).toEqual({
     storyPoints: 'your friend',
-    devCompleteTime: 'my banana',
+    devCompleteTime: 'development complete time',
+    readyForReviewTime: 'my banana',
     startTime: 'start time',
   })
 })

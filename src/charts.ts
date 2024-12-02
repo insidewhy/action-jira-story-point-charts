@@ -230,7 +230,7 @@ export async function makeOpenIssuesChart(
   issues: JiraIssue[],
   options: Options,
 ): Promise<Chart | undefined> {
-  const openIssues = new Map<string, { inReview: boolean; days: number }>()
+  const openIssues = new Map<string, { daysReadyForQA: number; daysReadyForReview: number }>()
   const millisecondsInADay = 24 * 60 * 60_000
   const now = Date.now()
   const { statuses } = options
@@ -240,10 +240,25 @@ export async function makeOpenIssuesChart(
 
     if (!issue.devCompleteTime) continue
 
-    const inReview = lcStatus === statuses.inReview.name
-    if (lcStatus === statuses.readyForQA.name || inReview) {
-      const daysInStatus = (now - issue.devCompleteTime) / millisecondsInADay
-      openIssues.set(issue.key, { inReview, days: daysInStatus })
+    let daysReadyForQA = 0
+    let daysReadyForReview = 0
+
+    const readyForQA = lcStatus === statuses.readyForQA.name
+
+    if (readyForQA && issue.devCompleteTime) {
+      daysReadyForQA = (now - issue.devCompleteTime) / millisecondsInADay
+    }
+
+    if (issue.readyForReviewTime && (readyForQA || lcStatus === statuses.inReview.name)) {
+      daysReadyForReview = (now - issue.readyForReviewTime) / millisecondsInADay
+    }
+
+    if (daysReadyForReview >= daysReadyForQA) {
+      daysReadyForReview = Math.max(0, daysReadyForReview - daysReadyForQA)
+    }
+
+    if (daysReadyForQA || daysReadyForReview) {
+      openIssues.set(issue.key, { daysReadyForQA, daysReadyForReview })
     }
   }
 
@@ -251,21 +266,22 @@ export async function makeOpenIssuesChart(
 
   const sorted = [...openIssues.entries()]
     .map(([status, stat]) => ({ status, ...stat }))
-    .sort((a, b) => b.days - a.days)
+    .sort((a, b) => b.daysReadyForQA - a.daysReadyForQA)
   const theme = {
     xyChart: { plotColorPalette: `${statuses.inReview.color}, ${statuses.readyForQA.color}` },
   }
-  const inReviewBar = sorted.map((stat) => (stat.inReview ? stat.days : 0))
-  const readyForQABar = sorted.map((stat) => (stat.inReview ? 0 : stat.days))
+  const inReviewBar = sorted.map((stat) => stat.daysReadyForReview)
+  const readyForQABar = sorted.map((stat) => stat.daysReadyForQA)
+  const maxX = Math.max(sorted[0].daysReadyForReview, sorted[0].daysReadyForQA)
 
   const mmd =
     `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
     `xychart-beta\n` +
     `  title "Issues in review or ready for QA"\n` +
     `  x-axis [${[...sorted.map(({ status }) => status)].join(', ')}]\n` +
-    `  y-axis "Number of days waiting" 0 --> ${sorted[0].days}\n` +
+    `  y-axis "Number of days waiting" 0 --> ${maxX}\n` +
     `  bar [${inReviewBar.join(', ')}]\n` +
-    `  bar [${readyForQABar.join(', ')}]\n`
+    `  bar [${readyForQABar.join(', ')}]`
 
   return makeChartFiles(mmd, 'open-issues', options)
 }

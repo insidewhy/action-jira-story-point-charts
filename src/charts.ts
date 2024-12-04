@@ -96,7 +96,13 @@ export async function makeRemainingStoryPointsLineChart(
   >()
   let totalStoryPoints = 0
   for (const issue of issues) {
-    const { storyPoints, resolutionTime, devCompleteTime, readyForReviewTime, startedTime } = issue
+    const {
+      storyPoints,
+      endTime: resolutionTime,
+      devCompleteTime,
+      readyForReviewTime,
+      startedTime,
+    } = issue
 
     totalStoryPoints += storyPoints
     if (resolutionTime) {

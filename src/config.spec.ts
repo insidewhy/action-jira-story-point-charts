@@ -56,9 +56,10 @@ it('can parse entire config', () => {
     jiraAuth: 'amlyYS11c2VyOmppcmEtdG9rZW4=',
     jiraFields: {
       storyPoints: 'story points',
-      devCompleteTime: 'development complete time',
-      readyForReviewTime: 'ready for review time',
       startTime: 'start time',
+      readyForReviewTime: 'ready for review time',
+      devCompleteTime: 'development complete time',
+      endTime: 'resolutiondate',
     },
     slackToken: DEFAULT_CONFIG.slackToken,
     jql: 'fixVersion = earliestUnreleasedVersion()',
@@ -84,9 +85,10 @@ it('can override jira fields', () => {
   const config = parseOptions()
   expect(config.jiraFields).toEqual({
     storyPoints: 'your friend',
-    devCompleteTime: 'development complete time',
-    readyForReviewTime: 'my banana',
     startTime: 'start time',
+    readyForReviewTime: 'my banana',
+    devCompleteTime: 'development complete time',
+    endTime: 'resolutiondate',
   })
 })
 

@@ -2,9 +2,10 @@ import { JiraFields, Options } from './config'
 
 interface FieldIds {
   storyPoints: string
+  startTime?: string
   readyForReviewTime?: string
   devCompleteTime?: string
-  startTime?: string
+  endTime: string
 }
 
 export interface JiraIssue {
@@ -12,10 +13,10 @@ export interface JiraIssue {
   type: string
   status: string
   storyPoints: number
-  resolutionTime: number | undefined
+  startedTime: number | undefined
   readyForReviewTime: number | undefined
   devCompleteTime: number | undefined
-  startedTime: number | undefined
+  endTime: number | undefined
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,33 +30,40 @@ async function makeJiraApiRequest(auth: string, baseUrl: string, path: string): 
   return response.json()
 }
 
-async function getCustomFields(
-  auth: string,
-  baseUrl: string,
-  fields: JiraFields,
-): Promise<FieldIds> {
+async function getFieldIds(auth: string, baseUrl: string, fields: JiraFields): Promise<FieldIds> {
   const fieldMetadata: Array<{ name: string; id: string }> = await makeJiraApiRequest(
     auth,
     baseUrl,
     'field',
   )
   let storyPoints = ''
-  let devCompleteTime: string | undefined
   let startTime: string | undefined
   let readyForReviewTime: string | undefined
+  let devCompleteTime: string | undefined
+  let endTime: string | undefined
   for (const field of fieldMetadata) {
     const fieldName = field.name.toLocaleLowerCase()
     if (fieldName === fields.storyPoints) storyPoints = field.id
     else if (fieldName === fields.devCompleteTime) devCompleteTime = field.id
     else if (fieldName === fields.startTime) startTime = field.id
     else if (fieldName === fields.readyForReviewTime) readyForReviewTime = field.id
+    else if (fieldName === fields.endTime) endTime = field.id
   }
 
   if (!storyPoints) {
     throw new Error(`Could not find "${fields.storyPoints}" field`)
   }
+  if (!endTime) {
+    if (fields.endTime === 'resolutiondate') {
+      // it's a special kind of field that's tied to the `resolution` field, it doesn't appear
+      // in the field list
+      endTime = 'resolutiondate'
+    } else {
+      throw new Error(`Could not find "${fields.endTime}" field`)
+    }
+  }
 
-  return { storyPoints, devCompleteTime, readyForReviewTime, startTime }
+  return { storyPoints, startTime, readyForReviewTime, devCompleteTime, endTime }
 }
 
 function fetchIssuesPage(auth: string, baseUrl: string, jql: string, offset = 0) {
@@ -66,7 +74,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
   const { jiraAuth: auth, jiraBaseUrl: baseUrl, jql: rawJql, statuses } = options
   const jql = encodeURIComponent(rawJql)
 
-  const fieldIds = await getCustomFields(auth, baseUrl, options.jiraFields)
+  const fieldIds = await getFieldIds(auth, baseUrl, options.jiraFields)
 
   const firstPage = await fetchIssuesPage(auth, baseUrl, jql)
   const { issues } = firstPage
@@ -87,17 +95,19 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
     const status = issue.fields.status.name
     const lcStatus = status.toLocaleLowerCase()
 
-    let resolutionTime: number | undefined
+    let endTime: number | undefined
     if (lcStatus === statuses.done.name) {
-      const resolutionDate: string | undefined = issue.fields.resolutiondate
-      resolutionTime = resolutionDate ? new Date(resolutionDate).getTime() : undefined
+      const endTimeString: string | undefined = issue.fields[fieldIds.endTime]
+      endTime = endTimeString ? new Date(endTimeString).getTime() : undefined
     }
 
     let devCompleteTime: number | undefined
     if (fieldIds.devCompleteTime) {
       if (lcStatus === statuses.done.name || lcStatus === statuses.readyForQA.name) {
-        const devCompletedDate: string | undefined = issue.fields[fieldIds.devCompleteTime]
-        devCompleteTime = devCompletedDate ? new Date(devCompletedDate).getTime() : undefined
+        const devCompletedTimeString: string | undefined = issue.fields[fieldIds.devCompleteTime]
+        devCompleteTime = devCompletedTimeString
+          ? new Date(devCompletedTimeString).getTime()
+          : undefined
       }
     }
 
@@ -108,8 +118,11 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
         lcStatus === statuses.readyForQA.name ||
         lcStatus === statuses.inReview.name
       ) {
-        const readyForReviewDate: string | undefined = issue.fields[fieldIds.readyForReviewTime]
-        readyForReviewTime = readyForReviewDate ? new Date(readyForReviewDate).getTime() : undefined
+        const readyForReviewTimeString: string | undefined =
+          issue.fields[fieldIds.readyForReviewTime]
+        readyForReviewTime = readyForReviewTimeString
+          ? new Date(readyForReviewTimeString).getTime()
+          : undefined
       }
     }
 
@@ -121,8 +134,8 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
         lcStatus === statuses.inReview.name ||
         lcStatus === statuses.inProgress.name
       ) {
-        const startedDate: string | undefined = issue.fields[fieldIds.startTime]
-        startedTime = startedDate ? new Date(startedDate).getTime() : undefined
+        const startedTimeString: string | undefined = issue.fields[fieldIds.startTime]
+        startedTime = startedTimeString ? new Date(startedTimeString).getTime() : undefined
       }
     }
 
@@ -131,7 +144,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
       type,
       status,
       storyPoints,
-      resolutionTime,
+      endTime,
       devCompleteTime,
       readyForReviewTime,
       startedTime,

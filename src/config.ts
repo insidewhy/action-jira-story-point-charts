@@ -16,9 +16,10 @@ interface Statuses {
 
 export interface JiraFields {
   storyPoints: string
-  devCompleteTime: string
   startTime: string
   readyForReviewTime: string
+  devCompleteTime: string
+  endTime: string
 }
 
 export interface Options {
@@ -51,6 +52,7 @@ const DEFAULT_JIRA_FIELDS: JiraFields = {
   devCompleteTime: 'development complete time',
   startTime: 'start time',
   readyForReviewTime: 'ready for review time',
+  endTime: 'resolutiondate',
 }
 
 const DEFAULT_JQL = 'fixVersion = earliestUnreleasedVersion()'
@@ -94,8 +96,9 @@ export function parseOptions(): Options {
     const fieldMap = {
       'story-points': 'storyPoints',
       'start-time': 'storyPoints',
-      'dev-complete-time': 'devCompleteTime',
       'ready-for-review-time': 'readyForReviewTime',
+      'dev-complete-time': 'devCompleteTime',
+      'end-time': 'endTime',
     } as const
 
     for (const { name, value, line } of parseYamlLikeFields('jira-fields', jiraFieldsRaw)) {

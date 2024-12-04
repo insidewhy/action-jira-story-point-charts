@@ -115,6 +115,7 @@ jira-fields: |
   dev-complete-time: development complete time
   ready-for-review-time: ready for review time
   start-time: start time
+  end-time: resolutiondate
 ```
 
 Field names in the config are matched to those in Jira using a case-insensitive comparison.

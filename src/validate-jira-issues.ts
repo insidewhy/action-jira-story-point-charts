@@ -7,7 +7,7 @@ async function validateJiraIssues() {
   const issues = await fetchIssues(options)
 
   for (const issue of issues) {
-    const { key, startedTime, resolutionTime, devCompleteTime } = issue
+    const { key, startedTime, endTime: resolutionTime, devCompleteTime } = issue
 
     if (resolutionTime && !startedTime) {
       console.warn('issue', key, 'was resolved but not started')

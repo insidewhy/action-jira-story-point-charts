@@ -24,7 +24,7 @@ runs:
         INPUT_JIRA-TOKEN: ${{inputs.jira-token}}
         INPUT_SLACK-TOKEN: ${{inputs.slack-token}}
         INPUT_JIRA-FIELDS: ${{inputs.jira-fields}}
-        INPUT_JIRA-STATUSES: ${{inputs.jira-fields}}
+        INPUT_JIRA-STATUSES: ${{inputs.jira-statuses}}
         INPUT_JQL: ${{inputs.jql}}
       run: |
         cd ${{ github.action_path }}

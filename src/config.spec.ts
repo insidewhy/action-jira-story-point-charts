@@ -64,11 +64,12 @@ it('can parse entire config', () => {
     slackToken: DEFAULT_CONFIG.slackToken,
     jql: 'fixVersion = earliestUnreleasedVersion()',
     statuses: {
-      draft: { name: 'draft', color: '#388bff' },
+      draft: { name: 'draft', color: '#8fa3bf' },
       todo: { name: 'to do', color: '#f15a50' },
       inProgress: { name: 'in progress', color: '#038411' },
       inReview: { name: 'in review', color: '#ff8b00' },
       readyForQA: { name: 'ready for qa', color: '#9c1de9' },
+      inTest: { name: 'in test', color: '#4b0082' },
       done: { name: 'done', color: '#43acd9' },
     },
   })
@@ -103,11 +104,12 @@ it('can override jira statuses', () => {
 
   const config = parseOptions()
   expect(config.statuses).toEqual({
-    draft: { name: 'draft', color: '#388bff' },
+    draft: { name: 'draft', color: '#8fa3bf' },
     todo: { name: 'to do', color: '#f15a50' },
     inProgress: { name: 'in progress', color: '#f9f9f9' },
     inReview: { name: 'in review', color: '#ff8b00' },
     readyForQA: { name: 'ready for test', color: '#aaaaaa' },
+    inTest: { name: 'in test', color: '#4b0082' },
     done: { name: 'complete', color: '#43acd9' },
   })
 })

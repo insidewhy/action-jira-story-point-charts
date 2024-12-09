@@ -103,7 +103,11 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
 
     let devCompleteTime: number | undefined
     if (fieldIds.devCompleteTime) {
-      if (lcStatus === statuses.done.name || lcStatus === statuses.readyForQA.name) {
+      if (
+        lcStatus === statuses.done.name ||
+        lcStatus === statuses.inTest.name ||
+        lcStatus === statuses.readyForQA.name
+      ) {
         const devCompletedTimeString: string | undefined = issue.fields[fieldIds.devCompleteTime]
         devCompleteTime = devCompletedTimeString
           ? new Date(devCompletedTimeString).getTime()
@@ -115,6 +119,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
     if (fieldIds.readyForReviewTime) {
       if (
         lcStatus === statuses.done.name ||
+        lcStatus === statuses.inTest.name ||
         lcStatus === statuses.readyForQA.name ||
         lcStatus === statuses.inReview.name
       ) {
@@ -130,6 +135,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
     if (fieldIds.startTime) {
       if (
         lcStatus === statuses.done.name ||
+        lcStatus === statuses.inTest.name ||
         lcStatus === statuses.readyForQA.name ||
         lcStatus === statuses.inReview.name ||
         lcStatus === statuses.inProgress.name

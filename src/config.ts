@@ -11,6 +11,7 @@ interface Statuses {
   inProgress: Status
   inReview: Status
   readyForQA: Status
+  inTest: Status
   done: Status
 }
 
@@ -39,11 +40,12 @@ export interface Options {
 const OUTPUT_DIRECTORY = 'charts'
 
 const DEFAULT_STATUSES: Statuses = {
-  draft: { name: 'draft', color: '#388bff' },
+  draft: { name: 'draft', color: '#8fa3bf' },
   todo: { name: 'to do', color: '#f15a50' },
   inProgress: { name: 'in progress', color: '#038411' },
   inReview: { name: 'in review', color: '#ff8b00' },
   readyForQA: { name: 'ready for qa', color: '#9c1de9' },
+  inTest: { name: 'in test', color: '#4b0082' },
   done: { name: 'done', color: '#43acd9' },
 }
 
@@ -122,6 +124,7 @@ export function parseOptions(): Options {
       'in-progress': 'inProgress',
       'in-review': 'inReview',
       'ready-for-qa': 'readyForQA',
+      'in-test': 'inTest',
       done: 'done',
     } as const
     for (const { name, value, line } of parseYamlLikeFields('jira-statuses', jiraStatusesRaw)) {

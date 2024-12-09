@@ -131,11 +131,12 @@ The various status names and colors can be overridden by action inputs. The foll
 
 ```yaml
 jira-statuses: |
-  draft: draft #388bff
+  draft: draft #8fa3bf
   todo: to do #f15a50
   in-progress: in progress #038411
   in-review: in review #ff8b00
   ready-for-qa: ready for qa #9c1de9
+  in-test: in test #4b0082
   done: done #43acd9
 ```
 

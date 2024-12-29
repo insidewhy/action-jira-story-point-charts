@@ -100,7 +100,7 @@ This configuration shows how to trigger the workflow at specific times and manua
 To trigger the workflow manually using the configuration above `github-cli` could be used:
 
 ```bash
-gh workflow run chart-bot -f slack-channel C52ZZTO9EAA
+gh workflow run chart-bot -f slack-channel=C52ZZTO9EAA
 ```
 
 ### Extra configuration

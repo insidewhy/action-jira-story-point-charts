@@ -266,9 +266,9 @@ export async function makeRemainingStoryPointsLineChart(
 
   const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
-  const ucFirstLabel = ucFirst(label)
+  const shownLabel = maxBucketIndex >= 10 ? label[0].toUpperCase() : ucFirst(label)
   const xAxis = rangeTo(maxBucketIndex + 1)
-    .map((i) => `"${ucFirstLabel} ${i}"`)
+    .map((i) => `"${shownLabel} ${i}"`)
     .join(', ')
   const mmd =
     `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +

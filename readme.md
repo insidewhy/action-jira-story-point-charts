@@ -76,7 +76,7 @@ concurrency:
 
 jobs:
   chart-bot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: insidewhy/action-jira-story-point-charts@v0

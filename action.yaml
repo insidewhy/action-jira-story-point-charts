@@ -12,6 +12,7 @@ runs:
       shell: bash
       run: |
         cd ${{ github.action_path }}
+        npm install -g corepack@latest
         corepack enable
         pnpm install --only=production
     - name: Run Action

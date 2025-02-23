@@ -160,6 +160,14 @@ This can be overridden using the `jql` input:
 jql: fixVersion = "release-1.0"
 ```
 
+#### Summary
+
+Optional summary text can also be attached to the slack message containing the charts:
+
+```yaml
+summary: These are the charts
+```
+
 ## Testing the action locally
 
 There are unit tests:

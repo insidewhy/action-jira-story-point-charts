@@ -3,7 +3,12 @@ import { basename } from 'node:path'
 
 import { Chart } from './charts'
 
-export async function postChartToChannel(slackToken: string, channel: string, charts: Chart[]) {
+export async function postChartToChannel(
+  slackToken: string,
+  channel: string,
+  charts: Chart[],
+  summary: string,
+) {
   const fileIds = await Promise.all(
     charts.map(async ({ filePath, mimeType }) => {
       const fileSize = (await stat(filePath)).size
@@ -44,13 +49,19 @@ export async function postChartToChannel(slackToken: string, channel: string, ch
     }),
   )
 
+  const uploadBody: { channel_id: string; files: Array<{ id: string }>; initial_comment?: string } =
+    {
+      channel_id: channel,
+      files: fileIds.map((fileId) => ({ id: fileId })),
+    }
+  if (summary) uploadBody.initial_comment = summary
   const completeUploadResponse = await fetch('https://slack.com/api/files.completeUploadExternal', {
     method: 'POST',
     headers: {
       authorization: `Bearer ${slackToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ channel_id: channel, files: fileIds.map((fileId) => ({ id: fileId })) }),
+    body: JSON.stringify(uploadBody),
   })
   if (!completeUploadResponse.ok) {
     throw new Error('Could not complete slack file upload')

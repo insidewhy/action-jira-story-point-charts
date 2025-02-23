@@ -36,6 +36,7 @@ async function runChartBot(options: Options) {
       options.slackToken,
       channel,
       [byDayChart, pieChart, byWeekChart, openIssuesChart].filter((chart) => chart !== undefined),
+      options.summary,
     )
   }
 }

@@ -27,6 +27,7 @@ runs:
         INPUT_JIRA-FIELDS: ${{inputs.jira-fields}}
         INPUT_JIRA-STATUSES: ${{inputs.jira-statuses}}
         INPUT_JQL: ${{inputs.jql}}
+        INPUT_SUMMARY: ${{inputs.summary}}
       run: |
         cd ${{ github.action_path }}
         node lib/index.mjs
@@ -57,3 +58,5 @@ inputs:
     description: Customise jira statuses
   jql:
     description: The jql used to select issues for the charts
+  summary:
+    description: A summary text message to include with the charts

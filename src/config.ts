@@ -7,6 +7,7 @@ interface Status {
 
 interface Statuses {
   draft: Status
+  blocked: Status
   todo: Status
   inProgress: Status
   inReview: Status
@@ -42,6 +43,7 @@ const OUTPUT_DIRECTORY = 'charts'
 
 const DEFAULT_STATUSES: Statuses = {
   draft: { name: 'draft', color: '#8fa3bf' },
+  blocked: { name: 'blocked', color: '#ff1493' },
   todo: { name: 'to do', color: '#f15a50' },
   inProgress: { name: 'in progress', color: '#038411' },
   inReview: { name: 'in review', color: '#ff8b00' },
@@ -122,6 +124,7 @@ export function parseOptions(): Options {
   if (jiraStatusesRaw) {
     const statusMap = {
       draft: 'draft',
+      blocked: 'blocked',
       todo: 'todo',
       'in-progress': 'inProgress',
       'in-review': 'inReview',

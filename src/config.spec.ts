@@ -43,6 +43,7 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   getInputMock.mockReturnValueOnce(mockedConfig.jiraFields ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.jiraStatuses ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.jql ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.summary ?? '')
 }
 
 it('can parse entire config', () => {
@@ -65,6 +66,7 @@ it('can parse entire config', () => {
     jql: 'fixVersion = earliestUnreleasedVersion()',
     statuses: {
       draft: { name: 'draft', color: '#8fa3bf' },
+      blocked: { name: 'blocked', color: '#ff1493' },
       todo: { name: 'to do', color: '#f15a50' },
       inProgress: { name: 'in progress', color: '#038411' },
       inReview: { name: 'in review', color: '#ff8b00' },
@@ -72,6 +74,7 @@ it('can parse entire config', () => {
       inTest: { name: 'in test', color: '#4b0082' },
       done: { name: 'done', color: '#43acd9' },
     },
+    summary: '',
   })
 })
 
@@ -105,6 +108,7 @@ it('can override jira statuses', () => {
   const config = parseOptions()
   expect(config.statuses).toEqual({
     draft: { name: 'draft', color: '#8fa3bf' },
+    blocked: { name: 'blocked', color: '#ff1493' },
     todo: { name: 'to do', color: '#f15a50' },
     inProgress: { name: 'in progress', color: '#f9f9f9' },
     inReview: { name: 'in review', color: '#ff8b00' },

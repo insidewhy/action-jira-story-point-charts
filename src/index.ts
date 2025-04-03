@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import {
   makeOpenIssuesChart,
   makeRemainingStoryPointsLineChart,
-  makeStoryPointsPiChart,
+  makeStoryPointsPieChart,
 } from './charts'
 import { Options, parseOptions } from './config'
 import { fetchIssues } from './jira'
@@ -14,7 +14,7 @@ async function runChartBot(options: Options) {
 
   await mkdir(options.output, { recursive: true })
 
-  const pieChart = await makeStoryPointsPiChart(issues, options)
+  const pieChart = await makeStoryPointsPieChart(issues, options)
   const byWeekChart = await makeRemainingStoryPointsLineChart(
     issues,
     options,

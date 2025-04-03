@@ -132,6 +132,7 @@ The various status names and colors can be overridden by action inputs. The foll
 ```yaml
 jira-statuses: |
   draft: draft #8fa3bf
+  blocked: blocked #ff1493
   todo: to do #f15a50
   in-progress: in progress #038411
   in-review: in review #ff8b00

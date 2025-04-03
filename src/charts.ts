@@ -45,7 +45,7 @@ function getPointsByStatus(issues: JiraIssue[]): Map<string, number> {
   return pointsByStatus
 }
 
-export async function makeStoryPointsPiChart(
+export async function makeStoryPointsPieChart(
   issues: JiraIssue[],
   options: Options,
 ): Promise<Chart | undefined> {

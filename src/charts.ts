@@ -351,6 +351,8 @@ export async function makeVelocityChart(
   velocities: PointBucketVelocities,
   options: Options,
 ): Promise<Chart | undefined> {
+  if (velocities.started.length <= 2) return undefined
+
   const maxY = Math.max(
     ...velocities.done,
     ...velocities.developed,
@@ -363,32 +365,27 @@ export async function makeVelocityChart(
   const lines: string[] = []
   if (velocities.started.length) {
     plotColorPalette.push(statuses.inProgress.color)
-    lines.push(`  line [${velocities.started.join(', ')}]`)
+    lines.push(`  line [${velocities.started.slice(1, -1).join(', ')}]`)
   }
   if (velocities.toReview.length) {
     plotColorPalette.push(statuses.inReview.color)
-    lines.push(`  line [${velocities.toReview.join(', ')}]`)
+    lines.push(`  line [${velocities.toReview.slice(1, -1).join(', ')}]`)
   }
   if (velocities.developed.length) {
     plotColorPalette.push(statuses.readyForQA.color)
-    lines.push(`  line [${velocities.developed.join(', ')}]`)
+    lines.push(`  line [${velocities.developed.slice(1, -1).join(', ')}]`)
   }
   if (velocities.done.length) {
     plotColorPalette.push(statuses.done.color)
-    lines.push(`  line [${velocities.done.join(', ')}]`)
+    lines.push(`  line [${velocities.done.slice(1, -1).join(', ')}]`)
   }
 
   const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
-  const xAxisCount = Math.max(
-    velocities.started.length,
-    velocities.toReview.length,
-    velocities.toReview.length,
-    velocities.done.length,
-  )
+  const xAxisCount = velocities.started.length - 2
   const shownLabel = xAxisCount >= 10 ? 'W' : 'Week'
   const xAxis = rangeTo(xAxisCount)
-    .map((i) => `"${shownLabel} ${i}"`)
+    .map((i) => `"${shownLabel} ${i + 1}"`)
     .join(', ')
   const mmd =
     `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +

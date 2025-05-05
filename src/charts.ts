@@ -83,13 +83,28 @@ const rangeTo = (limit: number) => Array.from(new Array(limit), (_, i) => i)
 
 const ucFirst = (str: string) => str[0].toLocaleUpperCase() + str.slice(1)
 
-export async function makeRemainingStoryPointsLineChart(
+export interface PointBuckets {
+  started: number[]
+  hasStartedEvents: boolean
+
+  developed: number[]
+  hasDevelopedEvents: boolean
+
+  toReview: number[]
+  hasToReviewEvents: boolean
+
+  done: number[]
+  hasDoneEvents: boolean
+
+  totalStoryPoints: number
+  maxBucketIndex: number
+}
+
+export function makePointBuckets(
   issues: JiraIssue[],
-  options: Options,
   timePeriod: number,
-  label: 'week' | 'day',
-  cutOffFactor?: number,
-): Promise<Chart | undefined> {
+  bucketCount?: number,
+): PointBuckets | undefined {
   const events = new Map<
     number,
     { started: number; toReview: number; developed: number; done: number }
@@ -152,122 +167,145 @@ export async function makeRemainingStoryPointsLineChart(
     .map(([time, pointFields]) => ({ time, ...pointFields }))
     .sort((a, b) => a.time - b.time)
 
-  const pointEvents: {
-    started?: number[]
-    developed?: number[]
-    toReview?: number[]
-    done?: number[]
-  } = {}
-
   const firstTime = sortedEvents[0].time
   // when a cut off factor is used then the chart should end at the current time and
   // buckets must all be aligned with the current time rather than the absolute first time
-  const lastTime = cutOffFactor ? Date.now() / timePeriod : sortedEvents.at(-1)!.time
-  const firstTimeRefPoint = cutOffFactor
-    ? firstTime - (1 - ((lastTime - firstTime) % 1))
-    : firstTime
+  const lastTime = bucketCount ? Date.now() / timePeriod : sortedEvents.at(-1)!.time
+  const firstTimeRefPoint = bucketCount ? firstTime - (1 - ((lastTime - firstTime) % 1)) : firstTime
+
+  const pointBuckets: PointBuckets = {
+    started: [],
+    hasStartedEvents: false,
+    developed: [],
+    hasDevelopedEvents: false,
+    toReview: [],
+    hasToReviewEvents: false,
+    done: [],
+    hasDoneEvents: false,
+    totalStoryPoints,
+    maxBucketIndex: Math.ceil(lastTime - firstTime),
+  }
 
   for (const { time, started, toReview, developed, done } of sortedEvents) {
     const relativeTime = Math.ceil(time - firstTimeRefPoint)
     if (started) {
-      if (!pointEvents.started) pointEvents.started = []
-      pointEvents.started[relativeTime] = (pointEvents.started[relativeTime] ?? 0) + started
+      pointBuckets.started[relativeTime] = (pointBuckets.started[relativeTime] ?? 0) + started
     }
     if (toReview) {
-      if (!pointEvents.toReview) pointEvents.toReview = []
-      pointEvents.toReview[relativeTime] = (pointEvents.toReview[relativeTime] ?? 0) + toReview
+      pointBuckets.toReview[relativeTime] = (pointBuckets.toReview[relativeTime] ?? 0) + toReview
     }
     if (developed) {
-      if (!pointEvents.developed) pointEvents.developed = []
-      pointEvents.developed[relativeTime] = (pointEvents.developed[relativeTime] ?? 0) + developed
+      pointBuckets.developed[relativeTime] = (pointBuckets.developed[relativeTime] ?? 0) + developed
     }
     if (done) {
-      if (!pointEvents.done) pointEvents.done = []
-      pointEvents.done[relativeTime] = (pointEvents.done[relativeTime] ?? 0) + done
+      pointBuckets.done[relativeTime] = (pointBuckets.done[relativeTime] ?? 0) + done
     }
   }
 
-  let maxBucketIndex = Math.ceil(lastTime - firstTime)
-  if (pointEvents.started) pointEvents.started.length = maxBucketIndex + 1
-  if (pointEvents.toReview) pointEvents.toReview.length = maxBucketIndex + 1
-  if (pointEvents.developed) pointEvents.developed.length = maxBucketIndex + 1
-  if (pointEvents.done) pointEvents.done.length = maxBucketIndex + 1
+  pointBuckets.hasStartedEvents = Boolean(pointBuckets.started.length)
+  pointBuckets.hasToReviewEvents = Boolean(pointBuckets.toReview.length)
+  pointBuckets.hasDevelopedEvents = Boolean(pointBuckets.developed.length)
+  pointBuckets.hasDoneEvents = Boolean(pointBuckets.done.length)
 
-  const chartPoints = {
+  pointBuckets.started.length = pointBuckets.maxBucketIndex + 1
+  pointBuckets.toReview.length = pointBuckets.maxBucketIndex + 1
+  pointBuckets.developed.length = pointBuckets.maxBucketIndex + 1
+  pointBuckets.done.length = pointBuckets.maxBucketIndex + 1
+
+  for (let i = 0; i <= pointBuckets.maxBucketIndex; ++i) {
+    const points = {
+      started: pointBuckets.started[i] ?? 0,
+      toReview: pointBuckets.toReview[i] ?? 0,
+      developed: pointBuckets.developed[i] ?? 0,
+      done: pointBuckets.done[i] ?? 0,
+    }
+
+    const prevDone = pointBuckets.done[i - 1] ?? 0
+    pointBuckets.done[i] = prevDone + points.done
+
+    const prevDeveloped = pointBuckets.developed[i - 1] ?? 0
+    pointBuckets.developed[i] = Math.max(pointBuckets.done[i], prevDeveloped + points.developed)
+
+    const prevToReview = pointBuckets.toReview[i - 1] ?? 0
+    pointBuckets.toReview[i] = Math.max(pointBuckets.developed[i], prevToReview + points.toReview)
+
+    const prevStarted = pointBuckets.started[i - 1] ?? 0
+    pointBuckets.started[i] = Math.max(pointBuckets.toReview[i], prevStarted + points.started)
+  }
+
+  return pointBuckets
+}
+
+export async function makeRemainingStoryPointsLineChart(
+  pointBuckets: PointBuckets,
+  options: Options,
+  label: 'week' | 'day',
+  bucketCount?: number,
+): Promise<Chart | undefined> {
+  const { totalStoryPoints } = pointBuckets
+
+  const remainingPoints = {
     started: [totalStoryPoints],
     toReview: [totalStoryPoints],
     developed: [totalStoryPoints],
     done: [totalStoryPoints],
   }
-  for (let i = 0; i <= maxBucketIndex; ++i) {
-    const points = {
-      started: pointEvents.started?.[i] ?? 0,
-      toReview: pointEvents.toReview?.[i] ?? 0,
-      developed: pointEvents.developed?.[i] ?? 0,
-      done: pointEvents.done?.[i] ?? 0,
-    }
 
-    const prevDone = chartPoints.done[i - 1] ?? totalStoryPoints
-    chartPoints.done[i] = prevDone - points.done
-
-    const prevDeveloped = chartPoints.developed[i - 1] ?? totalStoryPoints
-    chartPoints.developed[i] = Math.min(chartPoints.done[i], prevDeveloped - points.developed)
-
-    const prevToReview = chartPoints.toReview[i - 1] ?? totalStoryPoints
-    chartPoints.toReview[i] = Math.min(chartPoints.developed[i], prevToReview - points.toReview)
-
-    const prevStarted = chartPoints.started[i - 1] ?? totalStoryPoints
-    chartPoints.started[i] = Math.min(chartPoints.toReview[i], prevStarted - points.started)
+  for (let i = 0; i <= pointBuckets.maxBucketIndex; ++i) {
+    remainingPoints.done[i] = totalStoryPoints - pointBuckets.done[i]
+    remainingPoints.developed[i] = totalStoryPoints - pointBuckets.developed[i]
+    remainingPoints.toReview[i] = totalStoryPoints - pointBuckets.toReview[i]
+    remainingPoints.started[i] = totalStoryPoints - pointBuckets.started[i]
   }
 
   let minY = 0
   let maxY = totalStoryPoints
-  if (cutOffFactor) {
-    maxBucketIndex = cutOffFactor
-    const cutOffPoint = -cutOffFactor - 1
-    chartPoints.started = chartPoints.started?.slice(cutOffPoint)
-    chartPoints.toReview = chartPoints.toReview?.slice(cutOffPoint)
-    chartPoints.developed = chartPoints.developed?.slice(cutOffPoint)
-    chartPoints.done = chartPoints.done?.slice(cutOffPoint)
+  if (bucketCount) {
+    const cutOffPoint = -bucketCount - 1
+    remainingPoints.started = remainingPoints.started?.slice(cutOffPoint)
+    remainingPoints.toReview = remainingPoints.toReview?.slice(cutOffPoint)
+    remainingPoints.developed = remainingPoints.developed?.slice(cutOffPoint)
+    remainingPoints.done = remainingPoints.done?.slice(cutOffPoint)
 
     minY = Math.min(
-      chartPoints.started?.at(-1) ?? Number.MAX_SAFE_INTEGER,
-      chartPoints.toReview?.at(-1) ?? Number.MAX_SAFE_INTEGER,
-      chartPoints.developed?.at(-1) ?? Number.MAX_SAFE_INTEGER!,
-      chartPoints.done?.at(-1) ?? Number.MAX_SAFE_INTEGER!,
+      remainingPoints.started?.at(-1) ?? Number.MAX_SAFE_INTEGER,
+      remainingPoints.toReview?.at(-1) ?? Number.MAX_SAFE_INTEGER,
+      remainingPoints.developed?.at(-1) ?? Number.MAX_SAFE_INTEGER,
+      remainingPoints.done?.at(-1) ?? Number.MAX_SAFE_INTEGER,
     )
     maxY = Math.max(
-      chartPoints.started?.[0] ?? 0,
-      chartPoints.toReview?.[0] ?? 0,
-      chartPoints.developed?.[0] ?? 0,
-      chartPoints.done?.[0] ?? 0,
+      remainingPoints.started?.[0] ?? 0,
+      remainingPoints.toReview?.[0] ?? 0,
+      remainingPoints.developed?.[0] ?? 0,
+      remainingPoints.done?.[0] ?? 0,
     )
   }
 
   const { statuses } = options
   const plotColorPalette: string[] = []
   const lines: string[] = []
-  if (pointEvents.started) {
+  if (pointBuckets.hasStartedEvents) {
     plotColorPalette.push(statuses.inProgress.color)
-    lines.push(`  line [${chartPoints.started.join(', ')}]`)
+    lines.push(`  line [${remainingPoints.started.join(', ')}]`)
   }
-  if (pointEvents.toReview) {
+  if (pointBuckets.hasToReviewEvents) {
     plotColorPalette.push(statuses.inReview.color)
-    lines.push(`  line [${chartPoints.toReview.join(', ')}]`)
+    lines.push(`  line [${remainingPoints.toReview.join(', ')}]`)
   }
-  if (pointEvents.developed) {
+  if (pointBuckets.hasDevelopedEvents) {
     plotColorPalette.push(statuses.readyForQA.color)
-    lines.push(`  line [${chartPoints.developed.join(', ')}]`)
+    lines.push(`  line [${remainingPoints.developed.join(', ')}]`)
   }
-  if (pointEvents.done) {
+  if (pointBuckets.hasDoneEvents) {
     plotColorPalette.push(statuses.done.color)
-    lines.push(`  line [${chartPoints.done.join(', ')}]`)
+    lines.push(`  line [${remainingPoints.done.join(', ')}]`)
   }
 
   const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
-  const shownLabel = maxBucketIndex >= 10 ? label[0].toUpperCase() : ucFirst(label)
-  const xAxis = rangeTo(maxBucketIndex + 1)
+  const xAxisCount = (bucketCount ?? pointBuckets.maxBucketIndex) + 1
+  const shownLabel = xAxisCount >= 10 ? label[0].toUpperCase() : ucFirst(label)
+  const xAxis = rangeTo(xAxisCount)
     .map((i) => `"${shownLabel} ${i}"`)
     .join(', ')
   const mmd =
@@ -279,6 +317,69 @@ export async function makeRemainingStoryPointsLineChart(
     lines.join('\n')
 
   return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options)
+}
+
+export async function makeVelocityChart(
+  pointBuckets: PointBuckets,
+  options: Options,
+): Promise<Chart | undefined> {
+  const velocities = {
+    started: [pointBuckets.started[0]],
+    toReview: [pointBuckets.toReview[0]],
+    developed: [pointBuckets.developed[0]],
+    done: [pointBuckets.done[0]],
+  }
+
+  for (let i = 1; i <= pointBuckets.maxBucketIndex; ++i) {
+    velocities.done[i] = pointBuckets.done[i] - pointBuckets.done[i - 1]
+    velocities.developed[i] = pointBuckets.developed[i] - pointBuckets.developed[i - 1]
+    velocities.toReview[i] = pointBuckets.toReview[i] - pointBuckets.toReview[i - 1]
+    velocities.started[i] = pointBuckets.started[i] - pointBuckets.started[i - 1]
+  }
+
+  const maxY = Math.max(
+    ...velocities.done,
+    ...velocities.developed,
+    ...velocities.toReview,
+    ...velocities.started,
+  )
+
+  const { statuses } = options
+  const plotColorPalette: string[] = []
+  const lines: string[] = []
+  if (pointBuckets.hasStartedEvents) {
+    plotColorPalette.push(statuses.inProgress.color)
+    lines.push(`  line [${velocities.started.join(', ')}]`)
+  }
+  if (pointBuckets.hasToReviewEvents) {
+    plotColorPalette.push(statuses.inReview.color)
+    lines.push(`  line [${velocities.toReview.join(', ')}]`)
+  }
+  if (pointBuckets.hasDevelopedEvents) {
+    plotColorPalette.push(statuses.readyForQA.color)
+    lines.push(`  line [${velocities.developed.join(', ')}]`)
+  }
+  if (pointBuckets.hasDoneEvents) {
+    plotColorPalette.push(statuses.done.color)
+    lines.push(`  line [${velocities.done.join(', ')}]`)
+  }
+
+  const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
+
+  const xAxisCount = pointBuckets.maxBucketIndex + 1
+  const shownLabel = xAxisCount >= 10 ? 'W' : 'Week'
+  const xAxis = rangeTo(xAxisCount)
+    .map((i) => `"${shownLabel} ${i}"`)
+    .join(', ')
+  const mmd =
+    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
+    `xychart-beta\n` +
+    `  title "Story point velocity by week"\n` +
+    `  x-axis [${xAxis}]\n` +
+    `  y-axis "Story points" 0 --> ${maxY}\n` +
+    lines.join('\n')
+
+  return makeChartFiles(mmd, 'storypoint-velocity-by-week', options)
 }
 
 export async function makeOpenIssuesChart(

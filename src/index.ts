@@ -2,8 +2,10 @@ import { mkdir } from 'node:fs/promises'
 
 import {
   makeOpenIssuesChart,
+  makePointBuckets,
   makeRemainingStoryPointsLineChart,
   makeStoryPointsPieChart,
+  makeVelocityChart,
 } from './charts'
 import { Options, parseOptions } from './config'
 import { describeChanges } from './description'
@@ -19,20 +21,21 @@ async function runChartBot(options: Options) {
   await mkdir(options.output, { recursive: true })
 
   const pieChart = await makeStoryPointsPieChart(issues, options)
-  const byWeekChart = await makeRemainingStoryPointsLineChart(
-    issues,
-    options,
-    WEEK_IN_MSECS,
-    'week',
-  )
-  const byDayChart = await makeRemainingStoryPointsLineChart(
-    issues,
-    options,
-    DAY_IN_MSECS,
-    'day',
-    7,
-  )
+
+  const weeklyPointBuckets = makePointBuckets(issues, WEEK_IN_MSECS)
+  const byWeekChart = weeklyPointBuckets
+    ? await makeRemainingStoryPointsLineChart(weeklyPointBuckets, options, 'week')
+    : undefined
+
+  const dailyPointBuckets = makePointBuckets(issues, DAY_IN_MSECS, 7)
+  const byDayChart = dailyPointBuckets
+    ? await makeRemainingStoryPointsLineChart(dailyPointBuckets, options, 'day', 7)
+    : undefined
+
   const openIssuesChart = await makeOpenIssuesChart(issues, options)
+  const weeklyVelocityChart = weeklyPointBuckets
+    ? await makeVelocityChart(weeklyPointBuckets, options)
+    : undefined
 
   const { channel } = options
 
@@ -48,7 +51,9 @@ async function runChartBot(options: Options) {
     await postChartToChannel(
       options.slackToken,
       channel,
-      [byDayChart, pieChart, byWeekChart, openIssuesChart].filter((chart) => chart !== undefined),
+      [byDayChart, pieChart, byWeekChart, openIssuesChart, weeklyVelocityChart].filter(
+        (chart) => chart !== undefined,
+      ),
       initialCommentSections.length ? initialCommentSections.join('\n') : undefined,
     )
   }

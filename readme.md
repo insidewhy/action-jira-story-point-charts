@@ -154,7 +154,7 @@ Statuses in the config are matched to those in Jira using a case-insensitive com
 
 #### jql
 
-By the jql query for selecting issues is `fixVersion = earliestUnreleasedVersion()`.
+By default the jql query for selecting issues is `fixVersion = earliestUnreleasedVersion()`.
 This can be overridden using the `jql` input:
 
 ```yaml

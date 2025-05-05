@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import {
   makeOpenIssuesChart,
   makePointBuckets,
+  makePointBucketVelocities,
   makeRemainingStoryPointsLineChart,
   makeStoryPointsPieChart,
   makeVelocityChart,
@@ -33,8 +34,12 @@ async function runChartBot(options: Options) {
     : undefined
 
   const openIssuesChart = await makeOpenIssuesChart(issues, options)
-  const weeklyVelocityChart = weeklyPointBuckets
-    ? await makeVelocityChart(weeklyPointBuckets, options)
+
+  const weeklyVelocities = weeklyPointBuckets
+    ? makePointBucketVelocities(weeklyPointBuckets)
+    : undefined
+  const weeklyVelocityChart = weeklyVelocities
+    ? await makeVelocityChart(weeklyVelocities, options)
     : undefined
 
   const { channel } = options
@@ -44,7 +49,7 @@ async function runChartBot(options: Options) {
     options.withDailyDescription &&
       describeChanges(options.withDailyDescription, issues, DAY_IN_MSECS),
     options.withWeeklyDescription &&
-      describeChanges(options.withWeeklyDescription, issues, WEEK_IN_MSECS),
+      describeChanges(options.withWeeklyDescription, issues, WEEK_IN_MSECS, weeklyVelocities),
   ].filter((v) => Boolean(v))
 
   if (channel) {

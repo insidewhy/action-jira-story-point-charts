@@ -319,24 +319,38 @@ export async function makeRemainingStoryPointsLineChart(
   return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options)
 }
 
-export async function makeVelocityChart(
-  pointBuckets: PointBuckets,
-  options: Options,
-): Promise<Chart | undefined> {
-  const velocities = {
-    started: [pointBuckets.started[0]],
-    toReview: [pointBuckets.toReview[0]],
-    developed: [pointBuckets.developed[0]],
-    done: [pointBuckets.done[0]],
+export interface PointBucketVelocities {
+  started: number[]
+  developed: number[]
+  toReview: number[]
+  done: number[]
+}
+
+export function makePointBucketVelocities(pointBuckets: PointBuckets): PointBucketVelocities {
+  const velocities: PointBucketVelocities = {
+    started: pointBuckets.hasStartedEvents ? [pointBuckets.started[0]] : [],
+    toReview: pointBuckets.hasToReviewEvents ? [pointBuckets.toReview[0]] : [],
+    developed: pointBuckets.hasDevelopedEvents ? [pointBuckets.developed[0]] : [],
+    done: pointBuckets.hasDoneEvents ? [pointBuckets.done[0]] : [],
   }
 
   for (let i = 1; i <= pointBuckets.maxBucketIndex; ++i) {
-    velocities.done[i] = pointBuckets.done[i] - pointBuckets.done[i - 1]
-    velocities.developed[i] = pointBuckets.developed[i] - pointBuckets.developed[i - 1]
-    velocities.toReview[i] = pointBuckets.toReview[i] - pointBuckets.toReview[i - 1]
-    velocities.started[i] = pointBuckets.started[i] - pointBuckets.started[i - 1]
+    if (velocities.done.length) velocities.done[i] = pointBuckets.done[i] - pointBuckets.done[i - 1]
+    if (velocities.developed.length)
+      velocities.developed[i] = pointBuckets.developed[i] - pointBuckets.developed[i - 1]
+    if (velocities.toReview.length)
+      velocities.toReview[i] = pointBuckets.toReview[i] - pointBuckets.toReview[i - 1]
+    if (velocities.started.length)
+      velocities.started[i] = pointBuckets.started[i] - pointBuckets.started[i - 1]
   }
 
+  return velocities
+}
+
+export async function makeVelocityChart(
+  velocities: PointBucketVelocities,
+  options: Options,
+): Promise<Chart | undefined> {
   const maxY = Math.max(
     ...velocities.done,
     ...velocities.developed,
@@ -347,26 +361,31 @@ export async function makeVelocityChart(
   const { statuses } = options
   const plotColorPalette: string[] = []
   const lines: string[] = []
-  if (pointBuckets.hasStartedEvents) {
+  if (velocities.started.length) {
     plotColorPalette.push(statuses.inProgress.color)
     lines.push(`  line [${velocities.started.join(', ')}]`)
   }
-  if (pointBuckets.hasToReviewEvents) {
+  if (velocities.toReview.length) {
     plotColorPalette.push(statuses.inReview.color)
     lines.push(`  line [${velocities.toReview.join(', ')}]`)
   }
-  if (pointBuckets.hasDevelopedEvents) {
+  if (velocities.developed.length) {
     plotColorPalette.push(statuses.readyForQA.color)
     lines.push(`  line [${velocities.developed.join(', ')}]`)
   }
-  if (pointBuckets.hasDoneEvents) {
+  if (velocities.done.length) {
     plotColorPalette.push(statuses.done.color)
     lines.push(`  line [${velocities.done.join(', ')}]`)
   }
 
   const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
 
-  const xAxisCount = pointBuckets.maxBucketIndex + 1
+  const xAxisCount = Math.max(
+    velocities.started.length,
+    velocities.toReview.length,
+    velocities.toReview.length,
+    velocities.done.length,
+  )
   const shownLabel = xAxisCount >= 10 ? 'W' : 'Week'
   const xAxis = rangeTo(xAxisCount)
     .map((i) => `"${shownLabel} ${i}"`)

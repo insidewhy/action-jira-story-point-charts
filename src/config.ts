@@ -36,6 +36,8 @@ export interface Options {
   jql: string
   slackToken: string
   summary: string
+  withDailyDescription: string
+  withWeeklyDescription: string
 }
 
 // have to write the files because the mermaid API requires that
@@ -96,6 +98,8 @@ export function parseOptions(): Options {
   const jiraStatusesRaw = getInput('jira-statuses')
   const jql = getInput('jql') || DEFAULT_JQL
   const summary = getInput('summary')
+  const withDailyDescription = getInput('with-daily-description')
+  const withWeeklyDescription = getInput('with-weekly-description')
 
   const jiraFields = { ...DEFAULT_JIRA_FIELDS }
   if (jiraFieldsRaw) {
@@ -164,5 +168,7 @@ export function parseOptions(): Options {
     jiraFields,
     jql,
     summary,
+    withDailyDescription,
+    withWeeklyDescription,
   }
 }

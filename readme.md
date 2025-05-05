@@ -169,6 +169,15 @@ Optional summary text can also be attached to the slack message containing the c
 summary: These are the charts
 ```
 
+#### Textual descriptions
+
+A textual description containing the point changes for the week and/or day can be added to the slack message containing the charts.
+
+```yaml
+with-daily-description: Daily description heading
+with-weekly-description: Weekly description heading
+```
+
 ## Testing the action locally
 
 There are unit tests:

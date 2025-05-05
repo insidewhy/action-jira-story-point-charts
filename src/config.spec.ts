@@ -44,6 +44,8 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   getInputMock.mockReturnValueOnce(mockedConfig.jiraStatuses ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.jql ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.summary ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.withDailyDescription ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.withWeeklyDescription ?? '')
 }
 
 it('can parse entire config', () => {
@@ -75,6 +77,8 @@ it('can parse entire config', () => {
       done: { name: 'done', color: '#43acd9' },
     },
     summary: '',
+    withDailyDescription: '',
+    withWeeklyDescription: '',
   })
 })
 

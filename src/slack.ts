@@ -7,7 +7,7 @@ export async function postChartToChannel(
   slackToken: string,
   channel: string,
   charts: Chart[],
-  summary: string,
+  initialComment: string | undefined,
 ) {
   const fileIds = await Promise.all(
     charts.map(async ({ filePath, mimeType }) => {
@@ -54,7 +54,7 @@ export async function postChartToChannel(
       channel_id: channel,
       files: fileIds.map((fileId) => ({ id: fileId })),
     }
-  if (summary) uploadBody.initial_comment = summary
+  if (initialComment) uploadBody.initial_comment = initialComment
   const completeUploadResponse = await fetch('https://slack.com/api/files.completeUploadExternal', {
     method: 'POST',
     headers: {

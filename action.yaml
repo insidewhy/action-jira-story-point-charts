@@ -28,6 +28,8 @@ runs:
         INPUT_JIRA-STATUSES: ${{inputs.jira-statuses}}
         INPUT_JQL: ${{inputs.jql}}
         INPUT_SUMMARY: ${{inputs.summary}}
+        INPUT_WITH-DAILY-DESCRIPTION: ${{inputs.with-daily-description}}
+        INPUT_WITH-WEEKLY-DESCRIPTION: ${{inputs.with-weekly-description}}
       run: |
         cd ${{ github.action_path }}
         node lib/index.mjs
@@ -60,3 +62,7 @@ inputs:
     description: The jql used to select issues for the charts
   summary:
     description: A summary text message to include with the charts
+  with-weekly-description:
+    description: Add a textual summary of changes for this week
+  with-daily-description:
+    description: Add a textual summary of changes for this day

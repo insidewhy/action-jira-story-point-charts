@@ -6,8 +6,12 @@ import {
   makeStoryPointsPieChart,
 } from './charts'
 import { Options, parseOptions } from './config'
+import { describeChanges } from './description'
 import { fetchIssues } from './jira'
 import { postChartToChannel } from './slack'
+
+const DAY_IN_MSECS = 24 * 60 * 60_000
+const WEEK_IN_MSECS = 7 * DAY_IN_MSECS
 
 async function runChartBot(options: Options) {
   const issues = await fetchIssues(options)
@@ -18,25 +22,34 @@ async function runChartBot(options: Options) {
   const byWeekChart = await makeRemainingStoryPointsLineChart(
     issues,
     options,
-    7 * 24 * 60 * 60_000,
+    WEEK_IN_MSECS,
     'week',
   )
   const byDayChart = await makeRemainingStoryPointsLineChart(
     issues,
     options,
-    24 * 60 * 60_000,
+    DAY_IN_MSECS,
     'day',
     7,
   )
   const openIssuesChart = await makeOpenIssuesChart(issues, options)
 
   const { channel } = options
+
+  const initialCommentSections = [
+    options.summary,
+    options.withDailyDescription &&
+      describeChanges(options.withDailyDescription, issues, DAY_IN_MSECS),
+    options.withWeeklyDescription &&
+      describeChanges(options.withWeeklyDescription, issues, WEEK_IN_MSECS),
+  ].filter((v) => Boolean(v))
+
   if (channel) {
     await postChartToChannel(
       options.slackToken,
       channel,
       [byDayChart, pieChart, byWeekChart, openIssuesChart].filter((chart) => chart !== undefined),
-      options.summary,
+      initialCommentSections.length ? initialCommentSections.join('\n') : undefined,
     )
   }
 }

@@ -15,9 +15,16 @@ beforeEach(() => {
 type MockConfig = Partial<
   Omit<
     Options,
-    'storyPointEstimate' | 'output' | 'statuses' | 'jiraAuth' | 'jiraFields' | 'jiraStatuses'
+    | 'charts'
+    | 'storyPointEstimate'
+    | 'output'
+    | 'statuses'
+    | 'jiraAuth'
+    | 'jiraFields'
+    | 'jiraStatuses'
   >
 > & {
+  charts?: string
   storyPointEstimate?: string
   jiraFields?: string
   jiraStatuses?: string
@@ -35,6 +42,7 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   const mockedConfig = { ...DEFAULT_CONFIG, ...config }
 
   getInputMock.mockReturnValueOnce(mockedConfig.slackChannel)
+  getInputMock.mockReturnValueOnce(mockedConfig.charts ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.storyPointEstimate ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.jiraUser)
   getInputMock.mockReturnValueOnce(mockedConfig.jiraBaseUrl)
@@ -53,6 +61,13 @@ it('can parse entire config', () => {
   const config = parseOptions()
   expect(config).toEqual({
     channel: DEFAULT_CONFIG.slackChannel,
+    charts: [
+      'remaining-by-day',
+      'by-status',
+      'remaining-by-week',
+      'in-review-and-test',
+      'weekly-velocity',
+    ],
     output: 'charts',
     storyPointEstimate: 5,
     jiraBaseUrl: DEFAULT_CONFIG.jiraBaseUrl,

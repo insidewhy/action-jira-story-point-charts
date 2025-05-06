@@ -19,6 +19,7 @@ runs:
       shell: bash
       env:
         INPUT_SLACK-CHANNEL: ${{inputs.slack-channel}}
+        INPUT_CHARTS: ${{inputs.charts}}
         INPUT_STORY-POINT-ESTIMATE: ${{inputs.story-point-estimate}}
         INPUT_JIRA-USER: ${{inputs.jira-user}}
         INPUT_JIRA-BASE-URL: ${{inputs.jira-base-url}}
@@ -40,8 +41,10 @@ inputs:
   slack-channel:
     description: channel id of slack channel to post to
     required: true
+  charts:
+    description: The charts to generate
   story-point-estimate:
-    description: Story point estimate to assign to issues without story points
+    description: Story point estimate to assign to issues with unset story points
   jira-user:
     description: Jira user that created the auth token
     required: true

@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 
 import {
+  Chart,
   makeOpenIssuesChart,
   makePointBuckets,
   makePointBucketVelocities,
@@ -16,49 +17,79 @@ import { postChartToChannel } from './slack'
 const DAY_IN_MSECS = 24 * 60 * 60_000
 const WEEK_IN_MSECS = 7 * DAY_IN_MSECS
 
+function once<T>(callback: () => T): () => T {
+  let hasResult = false
+  let result: T | undefined
+
+  return (): T => {
+    if (hasResult) return result!
+    result = callback()
+    hasResult = true
+    return result
+  }
+}
+
 async function runChartBot(options: Options) {
   const issues = await fetchIssues(options)
 
   await mkdir(options.output, { recursive: true })
 
-  const pieChart = await makeStoryPointsPieChart(issues, options)
+  const getWeeklyPointBuckets = once(() => makePointBuckets(issues, WEEK_IN_MSECS))
 
-  const weeklyPointBuckets = makePointBuckets(issues, WEEK_IN_MSECS)
-  const byWeekChart = weeklyPointBuckets
-    ? await makeRemainingStoryPointsLineChart(weeklyPointBuckets, options, 'week')
-    : undefined
+  const getWeeklyVelocities = once(() => {
+    const weeklyBuckets = getWeeklyPointBuckets()
+    return weeklyBuckets ? makePointBucketVelocities(weeklyBuckets) : undefined
+  })
 
-  const dailyPointBuckets = makePointBuckets(issues, DAY_IN_MSECS, 7)
-  const byDayChart = dailyPointBuckets
-    ? await makeRemainingStoryPointsLineChart(dailyPointBuckets, options, 'day', 7)
-    : undefined
+  const getDailyPointBuckets = once(() => makePointBuckets(issues, DAY_IN_MSECS, 7))
 
-  const openIssuesChart = await makeOpenIssuesChart(issues, options)
-
-  const weeklyVelocities = weeklyPointBuckets
-    ? makePointBucketVelocities(weeklyPointBuckets)
-    : undefined
-  const weeklyVelocityChart = weeklyVelocities
-    ? await makeVelocityChart(weeklyVelocities, options)
-    : undefined
+  const allCharts = new Map<string, () => Promise<Chart | undefined>>([
+    [
+      'remaining-by-day',
+      async () => {
+        const dailyPointBuckets = getDailyPointBuckets()
+        return dailyPointBuckets
+          ? await makeRemainingStoryPointsLineChart(dailyPointBuckets, options, 'day', 7)
+          : undefined
+      },
+    ],
+    ['by-status', () => makeStoryPointsPieChart(issues, options)],
+    [
+      'remaining-by-week',
+      async () => {
+        const weeklyPointBuckets = getWeeklyPointBuckets()
+        return weeklyPointBuckets
+          ? makeRemainingStoryPointsLineChart(weeklyPointBuckets, options, 'week')
+          : undefined
+      },
+    ],
+    ['in-review-and-test', () => makeOpenIssuesChart(issues, options)],
+    [
+      'weekly-velocity',
+      async () => {
+        const weeklyVelocities = getWeeklyVelocities()
+        return weeklyVelocities ? makeVelocityChart(weeklyVelocities, options) : undefined
+      },
+    ],
+  ])
 
   const { channel } = options
+
+  const charts = await Promise.all(options.charts.map((chartName) => allCharts.get(chartName)!()))
 
   const initialCommentSections = [
     options.summary,
     options.withDailyDescription &&
       describeChanges(options.withDailyDescription, issues, DAY_IN_MSECS),
     options.withWeeklyDescription &&
-      describeChanges(options.withWeeklyDescription, issues, WEEK_IN_MSECS, weeklyVelocities),
+      describeChanges(options.withWeeklyDescription, issues, WEEK_IN_MSECS, getWeeklyVelocities()),
   ].filter((v) => Boolean(v))
 
   if (channel) {
     await postChartToChannel(
       options.slackToken,
       channel,
-      [byDayChart, pieChart, byWeekChart, openIssuesChart, weeklyVelocityChart].filter(
-        (chart) => chart !== undefined,
-      ),
+      charts.filter((chart) => chart !== undefined),
       initialCommentSections.length ? initialCommentSections.join('\n') : undefined,
     )
   }

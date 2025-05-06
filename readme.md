@@ -91,7 +91,7 @@ jobs:
 
 - The `JIRA_TOKEN` github secret should be a personal Jira token.
 - The `JIRA_USER` secret should be the email of the Jira user that created this token.
-- The `story-point-estimate` is the story points to assign to any issue where the `Story Points` field is unset, if omitted then any issue with an unset story points field will be assumed to be worth 0 story points.
+- The `story-point-estimate` is the story points to assign to any issue where the `Story Points` field is unset (`0` is not considered unset, the jira field must be null). If omitted then any issue with an unset story points field will be assumed to be worth 0 story points.
 - The `SLACK_TOKEN` secret should be the `Bot User OAuth Token` of a slack app which must be created and installed in the slack workspace. This token must have `files:write` and `chat:write` permissions. The app bot must be invited to a channel to be able to post charts to it.
 
 The slack channel ID must be given in `slack-channel` rather than the name of the channel, this can be retrieved by clicking on the channel name in slack.
@@ -105,9 +105,19 @@ gh workflow run chart-bot -f slack-channel=C52ZZTO9EAA
 
 ### Extra configuration
 
+#### charts
+
+This determines which charts should be created and in which order they should be posted.
+The following shows the defaults:
+
+```yaml
+charts: remaining-by-day by-status remaining-by-week in-review-and-test weekly-velocity
+```
+
 #### jira-fields
 
-The fields used to determine the `story points`, `start time`, and `development complete time` of an issue can be overriden by action inputs. The following shows the defaults:
+The fields used to determine the `story points`, `start time`, and `development complete time` of an issue can be overriden by action inputs.
+The following shows the defaults:
 
 ```yaml
 jira-fields: |

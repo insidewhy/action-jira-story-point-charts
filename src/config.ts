@@ -26,6 +26,7 @@ export interface JiraFields {
 
 export interface Options {
   channel?: string
+  charts: string[]
   output: string
   storyPointEstimate: number
   noImages?: boolean
@@ -42,6 +43,16 @@ export interface Options {
 
 // have to write the files because the mermaid API requires that
 const OUTPUT_DIRECTORY = 'charts'
+
+const DEFAULT_CHARTS = [
+  'remaining-by-day',
+  'by-status',
+  'remaining-by-week',
+  'in-review-and-test',
+  'weekly-velocity',
+]
+
+const AVAILABLE_CHARTS = new Set(DEFAULT_CHARTS)
 
 const DEFAULT_STATUSES: Statuses = {
   draft: { name: 'draft', color: '#8fa3bf' },
@@ -89,6 +100,7 @@ const parseYamlLikeFields = (configName: string, configValue: string): ConfigVal
 
 export function parseOptions(): Options {
   const channel = getInput('slack-channel', { required: true })
+  const chartsRaw = getInput('charts')
   const storyPointEstimateRaw = getInput('story-point-estimate')
   const jiraUser = getInput('jira-user', { required: true })
   const jiraBaseUrl = getInput('jira-base-url', { required: true })
@@ -100,6 +112,14 @@ export function parseOptions(): Options {
   const summary = getInput('summary')
   const withDailyDescription = getInput('with-daily-description')
   const withWeeklyDescription = getInput('with-weekly-description')
+
+  let charts = DEFAULT_CHARTS
+  if (!/^\s*$/.test(chartsRaw)) {
+    charts = chartsRaw.split(/\s+/)
+    for (const chart of charts) {
+      if (!AVAILABLE_CHARTS.has(chart)) throw new Error(`Chart type ${chart} is not supported`)
+    }
+  }
 
   const jiraFields = { ...DEFAULT_JIRA_FIELDS }
   if (jiraFieldsRaw) {
@@ -159,6 +179,7 @@ export function parseOptions(): Options {
   const storyPointEstimate = storyPointEstimateRaw ? parseInt(storyPointEstimateRaw) : 0
   return {
     channel: channel,
+    charts,
     output: OUTPUT_DIRECTORY,
     storyPointEstimate,
     statuses,

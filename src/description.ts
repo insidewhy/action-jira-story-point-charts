@@ -18,41 +18,47 @@ function meanOfVelocities(values: number[]): number {
   return Math.round(sum / values.length)
 }
 
+const numberOfDigits = (value: number): number => Math.floor(Math.log10(value)) + 1
+
 function buildMetrics(
   totalStoryPoints: number,
   metrics: Array<{ label: string; start: number; end: number; velocities: number[] | undefined }>,
 ): string {
   const maxMetricLength = Math.max(
     ...metrics.flatMap(({ start, end }) => [
-      Math.floor(Math.log10(totalStoryPoints - start)) + 1,
-      Math.floor(Math.log10(totalStoryPoints - end)) + 1,
+      numberOfDigits(totalStoryPoints - start),
+      numberOfDigits(totalStoryPoints - end),
     ]),
   )
 
   const percentagePad = metrics[0].start === totalStoryPoints ? 3 : 2
 
-  const diffPad =
-    Math.max(...metrics.map(({ start, end }) => Math.floor(Math.log10(end - start)))) + 2
+  const diffPad = Math.max(...metrics.map(({ start, end }) => numberOfDigits(end - start))) + 1
   const diffPercentagePad =
     Math.max(
-      ...metrics.map(({ start, end }) =>
-        Math.round((Math.log10(end - start) / totalStoryPoints) * 100),
-      ),
-    ) + 3
+      ...metrics.map(({ start, end }) => numberOfDigits(((end - start) / totalStoryPoints) * 100)),
+    ) + 1
 
   return metrics
     .map(({ label, start, end, velocities }) => {
       const startRemaining = totalStoryPoints - start
       const endRemaining = totalStoryPoints - end
 
-      let lineContent = `${(label + ':').padEnd(longestHeadingLength, ' ')} ${startRemaining.toString().padStart(maxMetricLength, ' ')} [${percentage(totalStoryPoints, startRemaining, percentagePad)}] -> ${endRemaining.toString().padStart(maxMetricLength, ' ')}`
-
-      // add differences
-      lineContent += `[${percentage(totalStoryPoints, endRemaining, percentagePad)}] (${(
-        start - end
-      )
-        .toString()
-        .padStart(diffPad, ' ')} [${percentage(totalStoryPoints, start - end, diffPercentagePad)}])`
+      let lineContent =
+        (label + ':').padEnd(longestHeadingLength, ' ') +
+        ' ' +
+        startRemaining.toString().padStart(maxMetricLength, ' ') +
+        ' [' +
+        percentage(totalStoryPoints, startRemaining, percentagePad) +
+        '] -> ' +
+        endRemaining.toString().padStart(maxMetricLength, ' ') +
+        '[' +
+        percentage(totalStoryPoints, endRemaining, percentagePad) +
+        '] (' +
+        (start - end).toString().padStart(diffPad, ' ') +
+        ' [' +
+        percentage(totalStoryPoints, start - end, diffPercentagePad) +
+        '])'
 
       if (velocities?.length && velocities.length > 2) {
         lineContent += ` - Mean Velocity: ${meanOfVelocities(velocities)}`

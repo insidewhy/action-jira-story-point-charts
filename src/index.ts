@@ -3,15 +3,15 @@ import { mkdir } from 'node:fs/promises'
 import {
   Chart,
   makeOpenIssuesChart,
-  makePointBuckets,
-  makePointBucketVelocities,
   makeRemainingStoryPointsLineChart,
   makeStoryPointsPieChart,
+  makeVelocityByDeveloperChart,
   makeVelocityChart,
 } from './charts'
 import { Options, parseOptions } from './config'
 import { describeChanges } from './description'
 import { fetchIssues } from './jira'
+import { makePointBuckets, makePointBucketVelocities } from './processing'
 import { postChartToChannel } from './slack'
 
 const DAY_IN_MSECS = 24 * 60 * 60_000
@@ -69,6 +69,15 @@ async function runChartBot(options: Options) {
       async () => {
         const weeklyVelocities = getWeeklyVelocities()
         return weeklyVelocities ? makeVelocityChart(weeklyVelocities, options) : undefined
+      },
+    ],
+    [
+      'velocity-by-developer',
+      async () => {
+        const weeklyPointBuckets = getWeeklyPointBuckets()
+        return weeklyPointBuckets
+          ? makeVelocityByDeveloperChart(issues, WEEK_IN_MSECS, options)
+          : undefined
       },
     ],
   ])

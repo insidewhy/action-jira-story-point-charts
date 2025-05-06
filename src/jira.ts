@@ -6,6 +6,7 @@ interface FieldIds {
   readyForReviewTime?: string
   devCompleteTime?: string
   endTime: string
+  developer?: string
 }
 
 export interface JiraIssue {
@@ -17,6 +18,7 @@ export interface JiraIssue {
   readyForReviewTime: number | undefined
   devCompleteTime: number | undefined
   endTime: number | undefined
+  developer: string | undefined
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,6 +43,7 @@ async function getFieldIds(auth: string, baseUrl: string, fields: JiraFields): P
   let readyForReviewTime: string | undefined
   let devCompleteTime: string | undefined
   let endTime: string | undefined
+  let developer: string | undefined
   for (const field of fieldMetadata) {
     const fieldName = field.name.toLocaleLowerCase()
     if (fieldName === fields.storyPoints) storyPoints = field.id
@@ -48,6 +51,7 @@ async function getFieldIds(auth: string, baseUrl: string, fields: JiraFields): P
     else if (fieldName === fields.startTime) startTime = field.id
     else if (fieldName === fields.readyForReviewTime) readyForReviewTime = field.id
     else if (fieldName === fields.endTime) endTime = field.id
+    else if (fieldName === fields.developer) developer = field.id
   }
 
   if (!storyPoints) {
@@ -63,7 +67,7 @@ async function getFieldIds(auth: string, baseUrl: string, fields: JiraFields): P
     }
   }
 
-  return { storyPoints, startTime, readyForReviewTime, devCompleteTime, endTime }
+  return { storyPoints, startTime, readyForReviewTime, devCompleteTime, endTime, developer }
 }
 
 function fetchIssuesPage(auth: string, baseUrl: string, jql: string, offset = 0) {
@@ -94,6 +98,8 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
 
     const status = issue.fields.status.name
     const lcStatus = status.toLocaleLowerCase()
+
+    const developer = fieldIds.developer ? issue.fields[fieldIds.developer]?.displayName : undefined
 
     let endTime: number | undefined
     if (lcStatus === statuses.done.name) {
@@ -154,6 +160,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
       devCompleteTime,
       readyForReviewTime,
       startedTime,
+      developer,
     })
   }
 

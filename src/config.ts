@@ -22,6 +22,7 @@ export interface JiraFields {
   readyForReviewTime: string
   devCompleteTime: string
   endTime: string
+  developer: string
 }
 
 export interface Options {
@@ -52,7 +53,7 @@ const DEFAULT_CHARTS = [
   'weekly-velocity',
 ]
 
-const AVAILABLE_CHARTS = new Set(DEFAULT_CHARTS)
+const AVAILABLE_CHARTS = new Set([...DEFAULT_CHARTS, 'velocity-by-developer'])
 
 const DEFAULT_STATUSES: Statuses = {
   draft: { name: 'draft', color: '#8fa3bf' },
@@ -71,6 +72,7 @@ const DEFAULT_JIRA_FIELDS: JiraFields = {
   startTime: 'start time',
   readyForReviewTime: 'ready for review time',
   endTime: 'resolutiondate',
+  developer: 'developer',
 }
 
 const DEFAULT_JQL = 'fixVersion = earliestUnreleasedVersion()'
@@ -129,6 +131,7 @@ export function parseOptions(): Options {
       'ready-for-review-time': 'readyForReviewTime',
       'dev-complete-time': 'devCompleteTime',
       'end-time': 'endTime',
+      developer: 'developer',
     } as const
 
     for (const { name, value, line } of parseYamlLikeFields('jira-fields', jiraFieldsRaw)) {

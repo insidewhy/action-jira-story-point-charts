@@ -78,6 +78,7 @@ it('can parse entire config', () => {
       readyForReviewTime: 'ready for review time',
       devCompleteTime: 'development complete time',
       endTime: 'resolutiondate',
+      developer: 'developer',
     },
     slackToken: DEFAULT_CONFIG.slackToken,
     jql: 'fixVersion = earliestUnreleasedVersion()',
@@ -112,6 +113,7 @@ it('can override jira fields', () => {
     readyForReviewTime: 'my banana',
     devCompleteTime: 'development complete time',
     endTime: 'resolutiondate',
+    developer: 'developer',
   })
 })
 

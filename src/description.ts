@@ -1,5 +1,5 @@
-import { PointBucketVelocities } from './charts'
 import { JiraIssue } from './jira'
+import { PointBucketVelocities } from './processing'
 
 const longestHeadingLength = 'Not Yet Ready for QA'.length + 2
 

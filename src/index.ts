@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 
 import {
   Chart,
+  makeAverageWeelyVelocityByDeveloperChart,
   makeOpenIssuesChart,
   makeRemainingStoryPointsLineChart,
   makeStoryPointsPieChart,
@@ -73,12 +74,11 @@ async function runChartBot(options: Options) {
     ],
     [
       'velocity-by-developer',
-      async () => {
-        const weeklyPointBuckets = getWeeklyPointBuckets()
-        return weeklyPointBuckets
-          ? makeVelocityByDeveloperChart(issues, WEEK_IN_MSECS, options)
-          : undefined
-      },
+      async () => makeAverageWeelyVelocityByDeveloperChart(issues, WEEK_IN_MSECS, options),
+    ],
+    [
+      'velocity-by-developer-this-week',
+      async () => makeVelocityByDeveloperChart(issues, WEEK_IN_MSECS, options),
     ],
   ])
 

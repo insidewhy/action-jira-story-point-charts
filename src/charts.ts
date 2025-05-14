@@ -290,7 +290,7 @@ export async function makeOpenIssuesChart(
   return makeChartFiles(mmd, 'open-issues', options)
 }
 
-export async function makeVelocityByDeveloperChart(
+export async function makeAverageWeelyVelocityByDeveloperChart(
   issues: JiraIssue[],
   timePeriod: number,
   options: Options,
@@ -311,29 +311,29 @@ export async function makeVelocityByDeveloperChart(
 
   for (const issue of issues) {
     const { storyPoints, developer } = issue
-    if (storyPoints && developer) {
-      const { devCompleteTime, startedTime } = issue
-      if (startedTime) {
-        const relativeTime = Math.max(
-          Math.floor((startedTime - firstDevCompleteTime) / timePeriod),
-          0,
-        )
-        const previousStartTime = startTimes.get(developer)
-        if (previousStartTime === undefined || relativeTime < previousStartTime) {
-          startTimes.set(developer, relativeTime)
-        }
-      }
+    if (!storyPoints || !developer) continue
 
-      if (devCompleteTime) {
-        const relativeTime = Math.floor((devCompleteTime - firstDevCompleteTime) / timePeriod)
-
-        let timeBuckets = events.get(relativeTime)
-        if (!timeBuckets) {
-          timeBuckets = new Map()
-          events.set(relativeTime, timeBuckets)
-        }
-        timeBuckets.set(developer, (timeBuckets.get(developer) ?? 0) + storyPoints)
+    const { devCompleteTime, startedTime } = issue
+    if (startedTime) {
+      const relativeTime = Math.max(
+        Math.floor((startedTime - firstDevCompleteTime) / timePeriod),
+        0,
+      )
+      const previousStartTime = startTimes.get(developer)
+      if (previousStartTime === undefined || relativeTime < previousStartTime) {
+        startTimes.set(developer, relativeTime)
       }
+    }
+
+    if (devCompleteTime) {
+      const relativeTime = Math.floor((devCompleteTime - firstDevCompleteTime) / timePeriod)
+
+      let timeBuckets = events.get(relativeTime)
+      if (!timeBuckets) {
+        timeBuckets = new Map()
+        events.set(relativeTime, timeBuckets)
+      }
+      timeBuckets.set(developer, (timeBuckets.get(developer) ?? 0) + storyPoints)
     }
   }
 
@@ -360,5 +360,33 @@ export async function makeVelocityByDeveloperChart(
       .map(([developer, points]) => `  "${developer}": ${points.toFixed(1)}\n`)
       .join('')
 
-  return makeChartFiles(mmd, 'storypoint-velocity-per-developer-pie', options)
+  return makeChartFiles(mmd, 'average-weekly-storypoint-velocity-per-developer-pie', options)
+}
+
+export async function makeVelocityByDeveloperChart(
+  issues: JiraIssue[],
+  timePeriod: number,
+  options: Options,
+): Promise<Chart | undefined> {
+  const velocities = new Map<string, number>()
+  const weekStart = Date.now() - timePeriod
+
+  for (const issue of issues) {
+    const { storyPoints, developer } = issue
+    if (!storyPoints || !developer) continue
+
+    const { devCompleteTime } = issue
+
+    if (devCompleteTime && devCompleteTime > weekStart) {
+      velocities.set(developer, (velocities.get(developer) ?? 0) + storyPoints)
+    }
+  }
+
+  const mmd =
+    `pie showData title Story point velocity this week\n` +
+    Array.from(velocities.entries())
+      .map(([developer, points]) => `  "${developer}": ${points.toFixed(1)}\n`)
+      .join('')
+
+  return makeChartFiles(mmd, 'storypoint-velocity-per-developer-this-week-pie', options)
 }

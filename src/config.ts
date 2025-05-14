@@ -53,7 +53,11 @@ const DEFAULT_CHARTS = [
   'weekly-velocity',
 ]
 
-const AVAILABLE_CHARTS = new Set([...DEFAULT_CHARTS, 'velocity-by-developer'])
+const AVAILABLE_CHARTS = new Set([
+  ...DEFAULT_CHARTS,
+  'velocity-by-developer',
+  'velocity-by-developer-this-week',
+])
 
 const DEFAULT_STATUSES: Statuses = {
   draft: { name: 'draft', color: '#8fa3bf' },

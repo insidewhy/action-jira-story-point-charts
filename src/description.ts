@@ -3,10 +3,8 @@ import { PointBucketVelocities } from './processing'
 
 const longestHeadingLength = 'Not Yet Ready for QA'.length + 2
 
-const percentage = (count: number, total: number, pad: number) =>
-  Math.round((total / count) * 100)
-    .toString()
-    .padStart(pad, ' ') + '%'
+const percentage = (count: number, total: number) =>
+  Math.round((total / count) * 100).toString() + '%'
 
 /**
  * Get the mean of the velocities, excluding week 0 (at most it will only record the first issue
@@ -21,51 +19,100 @@ function meanOfVelocities(values: number[]): string {
 const numberOfDigits = (value: number): number => Math.floor(Math.log10(value)) + 1
 
 function buildMetrics(
-  totalStoryPoints: number,
+  startTotal: number,
+  endTotal: number,
   metrics: Array<{ label: string; start: number; end: number; velocities: number[] | undefined }>,
 ): string {
+  const enhancedMetrics = metrics.map((metric) => {
+    const diff = metric.start - metric.end
+    const diffDisplay = diff > 0 ? `+${diff}` : diff.toString()
+    const startDisplay = endTotal - metric.start
+    const endDisplay = endTotal - metric.end
+
+    const diffPercentage = Math.round(((metric.start - metric.end) / endTotal) * 100)
+    const diffPercentageDisplay = diffPercentage > 0 ? `+${diffPercentage}%` : `${diffPercentage}%`
+
+    return {
+      label: metric.label,
+      velocities: metric.velocities,
+      startDisplay,
+      endDisplay,
+      diffDisplay,
+      startPercentage: percentage(endTotal, startDisplay),
+      endPercentage: percentage(endTotal, endDisplay),
+      diffPercentage: diffPercentageDisplay,
+    }
+  })
+
+  const totalDiff = endTotal - startTotal
+  const totalDiffPercentage = Math.round(((endTotal - startTotal) / endTotal) * 100)
+  enhancedMetrics.push({
+    label: 'Total',
+    velocities: undefined,
+    startDisplay: startTotal,
+    endDisplay: endTotal,
+    diffDisplay: totalDiff > 0 ? `+${totalDiff}` : totalDiff.toString(),
+    startPercentage: percentage(endTotal, startTotal),
+    endPercentage: '100%',
+    diffPercentage:
+      totalDiffPercentage > 0 ? `+${totalDiffPercentage}%` : `${totalDiffPercentage}%`,
+  })
+
   const maxMetricLength = Math.max(
-    ...metrics.flatMap(({ start, end }) => [
-      numberOfDigits(totalStoryPoints - start),
-      numberOfDigits(totalStoryPoints - end),
+    ...enhancedMetrics.flatMap(({ startDisplay, endDisplay }) => [
+      numberOfDigits(startDisplay),
+      numberOfDigits(endDisplay),
     ]),
   )
 
-  const percentagePad = metrics[0].start === totalStoryPoints ? 3 : 2
+  // TODO: use 4 when displaying totals because the start will always be 100%
+  const startPercentagePad = Math.max(
+    ...enhancedMetrics.map(({ startPercentage }) => startPercentage.length),
+  )
+  const endPercentagePad = Math.max(
+    ...enhancedMetrics.map(({ endPercentage }) => endPercentage.length),
+  )
 
-  const diffPad = Math.max(...metrics.map(({ start, end }) => numberOfDigits(end - start))) + 1
-  const diffPercentagePad =
-    Math.max(
-      ...metrics.map(({ start, end }) => numberOfDigits(((end - start) / totalStoryPoints) * 100)),
-    ) + 1
+  const diffPad = Math.max(...enhancedMetrics.map(({ diffDisplay }) => diffDisplay.length))
+  const diffPercentagePad = Math.max(
+    ...enhancedMetrics.map(({ diffPercentage }) => diffPercentage.length),
+  )
 
-  return metrics
-    .map(({ label, start, end, velocities }) => {
-      const startRemaining = totalStoryPoints - start
-      const endRemaining = totalStoryPoints - end
+  return enhancedMetrics
+    .map(
+      ({
+        label,
+        startDisplay,
+        endDisplay,
+        startPercentage,
+        endPercentage,
+        diffDisplay,
+        diffPercentage,
+        velocities,
+      }) => {
+        let lineContent =
+          (label + ':').padEnd(longestHeadingLength, ' ') +
+          ' ' +
+          startDisplay.toString().padStart(maxMetricLength, ' ') +
+          ' [' +
+          startPercentage.padStart(startPercentagePad) +
+          '] -> ' +
+          endDisplay.toString().padStart(maxMetricLength, ' ') +
+          ' [' +
+          endPercentage.padStart(endPercentagePad) +
+          '] (' +
+          diffDisplay.toString().padStart(diffPad, ' ') +
+          ' [' +
+          diffPercentage.padStart(diffPercentagePad) +
+          '])'
 
-      let lineContent =
-        (label + ':').padEnd(longestHeadingLength, ' ') +
-        ' ' +
-        startRemaining.toString().padStart(maxMetricLength, ' ') +
-        ' [' +
-        percentage(totalStoryPoints, startRemaining, percentagePad) +
-        '] -> ' +
-        endRemaining.toString().padStart(maxMetricLength, ' ') +
-        '[' +
-        percentage(totalStoryPoints, endRemaining, percentagePad) +
-        '] (' +
-        (start - end).toString().padStart(diffPad, ' ') +
-        ' [' +
-        percentage(totalStoryPoints, start - end, diffPercentagePad) +
-        '])'
+        if (velocities?.length && velocities.length > 2) {
+          lineContent += ` - Mean Velocity: ${meanOfVelocities(velocities)}`
+        }
 
-      if (velocities?.length && velocities.length > 2) {
-        lineContent += ` - Mean Velocity: ${meanOfVelocities(velocities)}`
-      }
-
-      return `> \`${lineContent}\``
-    })
+        return `> \`${lineContent}\``
+      },
+    )
     .join('\n')
 }
 
@@ -77,9 +124,8 @@ export function describeChanges(
 ): string | undefined {
   const periodStart = Date.now() - timePeriod
 
-  let totalStoryPoints = 0
-  const start = { started: 0, toReview: 0, developed: 0, done: 0 }
-  const end = { started: 0, toReview: 0, developed: 0, done: 0 }
+  const start = { total: 0, started: 0, toReview: 0, developed: 0, done: 0 }
+  const end = { total: 0, started: 0, toReview: 0, developed: 0, done: 0 }
 
   for (const issue of issues) {
     const {
@@ -88,9 +134,13 @@ export function describeChanges(
       devCompleteTime,
       readyForReviewTime,
       startedTime,
+      createdTime,
     } = issue
 
-    totalStoryPoints += storyPoints
+    end.total += storyPoints
+    if (createdTime < periodStart) {
+      start.total += storyPoints
+    }
 
     if (startedTime) {
       end.started += storyPoints
@@ -123,7 +173,7 @@ export function describeChanges(
 
   return (
     `> ${header}\n` +
-    buildMetrics(totalStoryPoints, [
+    buildMetrics(start.total, end.total, [
       { label: 'To Do', start: start.started, end: end.started, velocities: velocities?.started },
       {
         label: 'Not Yet In Review',

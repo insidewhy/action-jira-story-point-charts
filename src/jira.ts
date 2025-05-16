@@ -14,6 +14,7 @@ export interface JiraIssue {
   type: string
   status: string
   storyPoints: number
+  createdTime: number
   startedTime: number | undefined
   readyForReviewTime: number | undefined
   devCompleteTime: number | undefined
@@ -160,6 +161,7 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
       devCompleteTime,
       readyForReviewTime,
       startedTime,
+      createdTime: new Date(issue.fields.created).getTime(),
       developer,
     })
   }

@@ -385,7 +385,7 @@ export async function makeVelocityByDeveloperChart(
   const mmd =
     `pie showData title Story point velocity this week\n` +
     Array.from(velocities.entries())
-      .map(([developer, points]) => `  "${developer}": ${points.toFixed(1)}\n`)
+      .map(([developer, points]) => `  "${developer}": ${points}\n`)
       .join('')
 
   return makeChartFiles(mmd, 'storypoint-velocity-per-developer-this-week-pie', options)

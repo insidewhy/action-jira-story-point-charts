@@ -13,9 +13,9 @@ const percentage = (count: number, total: number, pad: number) =>
  * starting) and last week (it may be incomplete)
  * @pre values.length > 2
  */
-function meanOfVelocities(values: number[]): number {
+function meanOfVelocities(values: number[]): string {
   const sum = values.slice(1, -1).reduce((acc: number, next: number) => acc + next)
-  return Math.round(sum / values.length)
+  return (sum / (values.length - 2)).toFixed(1)
 }
 
 const numberOfDigits = (value: number): number => Math.floor(Math.log10(value)) + 1

@@ -57,6 +57,7 @@ const AVAILABLE_CHARTS = new Set([
   ...DEFAULT_CHARTS,
   'velocity-by-developer',
   'velocity-by-developer-this-week',
+  'velocity-by-developer-last-week',
 ])
 
 const DEFAULT_STATUSES: Statuses = {

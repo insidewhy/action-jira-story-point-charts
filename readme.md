@@ -114,7 +114,7 @@ The following shows the defaults:
 charts: remaining-by-day by-status remaining-by-week in-review-and-test weekly-velocity
 ```
 
-There are additional `velocity-by-developer` and `velocity-by-developer-this-week` charts available which are not produced by default.
+There are additional `velocity-by-developer`, `velocity-by-developer-this-week` and `velocity-by-developer-last-week` charts available which are not produced by default.
 These charts need `developer` and `dev-complete-time` field configurations.
 
 #### jira-fields
@@ -139,7 +139,7 @@ Note the `|` in the `yaml`, this is because github only supports string action f
 The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time`, `Ready For Review Time` and `Development Complete Time` fields are not available by default.
 If the green, orange and purple lines would be appreciated then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the Jira workflow configuration UI.
 
-The `developer` field is only used by the `velocity-by-developer` and `velocity-by-developer-this-week` charts.
+The `developer` field is only used by the `velocity-by-developer`, `velocity-by-developer-this-week` and `velocity-by-developer-last-week` charts.
 
 #### jira-statuses
 

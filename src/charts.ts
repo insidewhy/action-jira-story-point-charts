@@ -5,6 +5,7 @@ import { join as pathJoin } from 'node:path'
 import { Options } from './config'
 import { JiraIssue } from './jira'
 import { PointBuckets, PointBucketVelocities } from './processing'
+import { Period, PERIOD_LENGTHS } from './time'
 
 export interface Chart {
   filePath: string
@@ -365,11 +366,16 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
 
 export async function makeVelocityByDeveloperChart(
   issues: JiraIssue[],
-  timePeriod: number,
+  periodsAgo: number,
+  period: Period,
+  periodCount: number,
   options: Options,
 ): Promise<Chart | undefined> {
   const velocities = new Map<string, number>()
-  const weekStart = Date.now() - timePeriod
+  const periodLength = PERIOD_LENGTHS[period]
+
+  const endTime = Date.now() - periodsAgo * periodLength
+  const startTime = endTime - periodCount * periodLength
 
   for (const issue of issues) {
     const { storyPoints, developer } = issue
@@ -377,16 +383,26 @@ export async function makeVelocityByDeveloperChart(
 
     const { devCompleteTime } = issue
 
-    if (devCompleteTime && devCompleteTime > weekStart) {
+    if (devCompleteTime && devCompleteTime > startTime && devCompleteTime < endTime) {
       velocities.set(developer, (velocities.get(developer) ?? 0) + storyPoints)
     }
   }
 
+  let label: string = period
+  if (periodsAgo === 0) {
+    label = `this ${label}`
+  } else if (periodsAgo === 1) {
+    label = `last ${label}`
+  } else {
+    label = `${periodsAgo} ${label}s ago`
+  }
+  const filenameLabel = label.replace(/ /g, '-')
+
   const mmd =
-    `pie showData title Story point velocity this week\n` +
+    `pie showData title Story point velocity ${label}\n` +
     Array.from(velocities.entries())
       .map(([developer, points]) => `  "${developer}": ${points}\n`)
       .join('')
 
-  return makeChartFiles(mmd, 'storypoint-velocity-per-developer-this-week-pie', options)
+  return makeChartFiles(mmd, `storypoint-velocity-per-developer-${filenameLabel}-pie`, options)
 }

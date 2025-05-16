@@ -14,9 +14,7 @@ import { describeChanges } from './description'
 import { fetchIssues } from './jira'
 import { makePointBuckets, makePointBucketVelocities } from './processing'
 import { postChartToChannel } from './slack'
-
-const DAY_IN_MSECS = 24 * 60 * 60_000
-const WEEK_IN_MSECS = 7 * DAY_IN_MSECS
+import { DAY_IN_MSECS, WEEK_IN_MSECS } from './time'
 
 function once<T>(callback: () => T): () => T {
   let hasResult = false
@@ -78,7 +76,11 @@ async function runChartBot(options: Options) {
     ],
     [
       'velocity-by-developer-this-week',
-      async () => makeVelocityByDeveloperChart(issues, WEEK_IN_MSECS, options),
+      async () => makeVelocityByDeveloperChart(issues, 0, 'week', 1, options),
+    ],
+    [
+      'velocity-by-developer-last-week',
+      async () => makeVelocityByDeveloperChart(issues, 1, 'week', 1, options),
     ],
   ])
 

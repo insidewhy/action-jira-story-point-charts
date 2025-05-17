@@ -7,8 +7,9 @@ const percentage = (count: number, total: number) =>
   Math.round((total / count) * 100).toString() + '%'
 
 /**
- * Get the mean of the velocities, excluding week 0 (at most it will only record the first issue
- * starting) and last week (it may be incomplete)
+ * Get the mean of the velocities, excluding the last week (it may be incomplete)
+ * and the first week (developer reports exclude this week to account for developer's
+ * who started the project mid-week so it's best to exclude these here also)
  * @pre values.length > 2
  */
 function meanOfVelocities(values: number[]): string {

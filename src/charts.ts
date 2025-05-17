@@ -299,14 +299,14 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
   // map of time against map of dev complete story points by developer
   const events = new Map<number, Map<string, number>>()
 
-  let firstDevCompleteTime = Number.MAX_SAFE_INTEGER
+  let firstStartedTime = Number.MAX_SAFE_INTEGER
   for (const issue of issues) {
-    const { devCompleteTime, developer, storyPoints } = issue
-    if (storyPoints && developer && devCompleteTime && devCompleteTime < firstDevCompleteTime) {
-      firstDevCompleteTime = devCompleteTime
+    const { startedTime, storyPoints } = issue
+    if (storyPoints && startedTime && startedTime < firstStartedTime) {
+      firstStartedTime = startedTime
     }
   }
-  if (firstDevCompleteTime === Number.MAX_SAFE_INTEGER) return undefined
+  if (firstStartedTime === Number.MAX_SAFE_INTEGER) return undefined
 
   const startTimes = new Map<string, number>()
 
@@ -316,10 +316,7 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
 
     const { devCompleteTime, startedTime } = issue
     if (startedTime) {
-      const relativeTime = Math.max(
-        Math.floor((startedTime - firstDevCompleteTime) / timePeriod),
-        0,
-      )
+      const relativeTime = Math.max(Math.floor((startedTime - firstStartedTime) / timePeriod), 0)
       const previousStartTime = startTimes.get(developer)
       if (previousStartTime === undefined || relativeTime < previousStartTime) {
         startTimes.set(developer, relativeTime)
@@ -327,7 +324,7 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
     }
 
     if (devCompleteTime) {
-      const relativeTime = Math.floor((devCompleteTime - firstDevCompleteTime) / timePeriod)
+      const relativeTime = Math.floor((devCompleteTime - firstStartedTime) / timePeriod)
 
       let timeBuckets = events.get(relativeTime)
       if (!timeBuckets) {
@@ -339,6 +336,8 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
   }
 
   // need at least 3 weeks to calculate this data
+  // the first week may be incomplete if a developer started mid-week, and the last week may
+  // be incomplete if the report was generated during that week
   if (events.size < 3) return undefined
 
   const orderedKeys = Array.from(events.keys()).sort((a, b) => a - b)

@@ -168,14 +168,17 @@ export function makePointBucketVelocities(pointBuckets: PointBuckets): PointBuck
     done: pointBuckets.hasDoneEvents ? [pointBuckets.done[0]] : [],
   }
 
-  for (let i = 1; i <= pointBuckets.maxBucketIndex; ++i) {
-    if (velocities.done.length) velocities.done[i] = pointBuckets.done[i] - pointBuckets.done[i - 1]
-    if (velocities.developed.length)
-      velocities.developed[i] = pointBuckets.developed[i] - pointBuckets.developed[i - 1]
-    if (velocities.toReview.length)
-      velocities.toReview[i] = pointBuckets.toReview[i] - pointBuckets.toReview[i - 1]
-    if (velocities.started.length)
-      velocities.started[i] = pointBuckets.started[i] - pointBuckets.started[i - 1]
+  // the first event in the point buckets should be the initial "started" event, which is the only
+  // event at week 0, the velocity buckets will start from week 1
+  for (let i = 0; i < pointBuckets.maxBucketIndex; ++i) {
+    if (pointBuckets.hasDoneEvents)
+      velocities.done[i] = pointBuckets.done[i + 1] - pointBuckets.done[i]
+    if (pointBuckets.hasDevelopedEvents)
+      velocities.developed[i] = pointBuckets.developed[i + 1] - pointBuckets.developed[i]
+    if (pointBuckets.hasToReviewEvents)
+      velocities.toReview[i] = pointBuckets.toReview[i + 1] - pointBuckets.toReview[i]
+    if (pointBuckets.hasStartedEvents)
+      velocities.started[i] = pointBuckets.started[i + 1] - pointBuckets.started[i]
   }
 
   return velocities

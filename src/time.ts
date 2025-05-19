@@ -7,3 +7,13 @@ export const PERIOD_LENGTHS: Record<Period, number> = {
   day: DAY_IN_MSECS,
   week: WEEK_IN_MSECS,
 }
+
+export const formatDate = (date: Date): string => {
+  return (
+    date.getFullYear().toString() +
+    '-' +
+    (date.getMonth() + 1).toString().padStart(2, '0') +
+    '-' +
+    date.getDate().toString().padStart(2, '0')
+  )
+}

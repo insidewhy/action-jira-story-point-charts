@@ -40,6 +40,8 @@ export interface Options {
   summary: string
   withDailyDescription: string
   withWeeklyDescription: string
+  withDailyChanges: string
+  withWeeklyChanges: string
 }
 
 // have to write the files because the mermaid API requires that
@@ -119,6 +121,15 @@ export function parseOptions(): Options {
   const summary = getInput('summary')
   const withDailyDescription = getInput('with-daily-description')
   const withWeeklyDescription = getInput('with-weekly-description')
+  const withDailyChanges = getInput('with-daily-changes')
+  const withWeeklyChanges = getInput('with-weekly-changes')
+
+  if (withDailyChanges && !withDailyDescription) {
+    throw new Error('Cannot use with-daily-changes without with-daily-description')
+  }
+  if (withWeeklyChanges && !withWeeklyDescription) {
+    throw new Error('Cannot use with-weekly-changes without with-weekly-description')
+  }
 
   let charts = DEFAULT_CHARTS
   if (!/^\s*$/.test(chartsRaw)) {
@@ -199,5 +210,7 @@ export function parseOptions(): Options {
     summary,
     withDailyDescription,
     withWeeklyDescription,
+    withDailyChanges,
+    withWeeklyChanges,
   }
 }

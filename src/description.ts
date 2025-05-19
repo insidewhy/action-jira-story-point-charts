@@ -1,5 +1,7 @@
+import { readFile } from 'node:fs/promises'
 import { JiraIssue } from './jira'
 import { PointBucketVelocities } from './processing'
+import { formatDate, Period, PERIOD_LENGTHS } from './time'
 
 interface TableCell {
   content: string
@@ -8,7 +10,7 @@ interface TableCell {
   padEnd?: boolean
 }
 
-const makeJiraTable = (rows: TableCell[][]): string => {
+const makeJiraTable = (rows: TableCell[][], footer?: string): string => {
   const nColumns = rows[0].length
   const paddings: number[] = []
   for (let i = 0; i < nColumns; ++i) {
@@ -31,7 +33,9 @@ const makeJiraTable = (rows: TableCell[][]): string => {
     })
     .join('\n')
 
-  return '```\n' + rawData + '\n```'
+  let data = '```\n' + rawData
+  if (footer) data += `\n${footer}`
+  return data + '\n```'
 }
 
 const percentage = (count: number, total: number) =>
@@ -48,14 +52,15 @@ function meanOfVelocities(values: number[]): string {
   return (sum / (values.length - 2)).toFixed(1)
 }
 
+const formatDiff = (value: number): string => (value > 0 ? `+${value}` : value.toString())
+
 function buildMetrics(
   startTotal: number,
   endTotal: number,
   metrics: Array<{ label: string; start: number; end: number; velocities: number[] | undefined }>,
 ): string {
   const enhancedMetrics = metrics.map((metric) => {
-    const diff = metric.start - metric.end
-    const diffDisplay = diff > 0 ? `+${diff}` : diff.toString()
+    const diffDisplay = formatDiff(metric.start - metric.end)
     const start = endTotal - metric.start
     const end = endTotal - metric.end
 
@@ -81,7 +86,7 @@ function buildMetrics(
     velocities: undefined,
     startDisplay: startTotal.toString(),
     endDisplay: endTotal.toString(),
-    diffDisplay: totalDiff > 0 ? `+${totalDiff}` : totalDiff.toString(),
+    diffDisplay: formatDiff(totalDiff),
     startPercentage: percentage(endTotal, startTotal),
     endPercentage: '100%',
     diffPercentage:
@@ -111,13 +116,105 @@ function buildMetrics(
   )
 }
 
-export function describeChanges(
+// Uses strings rather than numbers since its used to build a slack table
+interface IssueChange {
+  key: string
+  storyPoints?: string
+  formerStoryPoints?: string
+  storyPointDiff: string
+  status?: string
+  formerStatus?: string
+}
+
+export async function describeChanges(
+  dataPath: string,
+  period: Period,
+  issues: JiraIssue[],
+): Promise<string | undefined> {
+  const previousDate = new Date()
+  if (period === 'day') {
+    if (previousDate.getDay() === 1) {
+      // on a monday use friday as the previous day
+      previousDate.setDate(previousDate.getDate() - 3)
+    } else {
+      previousDate.setDate(previousDate.getDate() - 1)
+    }
+  } else {
+    previousDate.setDate(previousDate.getDate() - 7)
+  }
+
+  const jiraDataPath = `${dataPath}/${formatDate(previousDate)}/jira.json`
+  const comparisonIssues: JiraIssue[] = []
+
+  try {
+    const comparisonIssueData = (await readFile(jiraDataPath)).toString()
+    comparisonIssues.push(...JSON.parse(comparisonIssueData))
+  } catch {
+    return undefined
+  }
+
+  const changes: IssueChange[] = []
+  const comparisonIssuesByKey = new Map(comparisonIssues.map((issue) => [issue.key, issue]))
+  let totalStoryPointDiff = 0
+
+  for (const issue of issues) {
+    const comparison = comparisonIssuesByKey.get(issue.key)
+    if (!comparison) {
+      changes.push({
+        key: issue.key,
+        storyPoints: issue.storyPoints.toString(),
+        status: issue.status,
+        storyPointDiff: issue.storyPoints.toString(),
+      })
+      totalStoryPointDiff += issue.storyPoints
+    } else if (comparison.storyPoints !== issue.storyPoints || comparison.status !== issue.status) {
+      const storyPointDiff = issue.storyPoints - comparison.storyPoints
+      totalStoryPointDiff += storyPointDiff
+      changes.push({
+        key: issue.key,
+        storyPoints: issue.storyPoints.toString(),
+        formerStoryPoints: comparison.storyPoints.toString(),
+        status: issue.status,
+        formerStatus: comparison.status,
+        storyPointDiff: formatDiff(issue.storyPoints - comparison.storyPoints),
+      })
+    }
+  }
+
+  const issuesByKey = new Map(issues.map((issue) => [issue.key, issue]))
+  for (const comparison of comparisonIssues) {
+    if (!issuesByKey.has(comparison.key)) {
+      changes.push({
+        key: comparison.key,
+        formerStoryPoints: comparison.storyPoints.toString(),
+        formerStatus: comparison.status,
+        storyPointDiff: formatDiff(comparison.storyPoints),
+      })
+    }
+  }
+
+  return makeJiraTable(
+    changes.map((change) => {
+      return [
+        { content: `${change.key}:` },
+        { content: `${change.formerStatus ?? 'Not Existing'}`, suffix: ' ->' },
+        { content: `${change.status ?? 'Deleted'}`, padEnd: true },
+        { content: `${change.formerStoryPoints ?? '0'}`, prefix: '- Story points [' },
+        { content: `${change.storyPoints ?? '0'}`, prefix: '-> ', suffix: ']' },
+      ]
+    }),
+    `\nTotal Story Point Change: ${formatDiff(totalStoryPointDiff)}`,
+  )
+}
+
+export async function describeWorkState(
   header: string,
   issues: JiraIssue[],
-  timePeriod: number,
+  period: Period,
+  withChangesPath?: string,
   velocities?: PointBucketVelocities,
-): string | undefined {
-  const periodStart = Date.now() - timePeriod
+): Promise<string | undefined> {
+  const periodStart = Date.now() - PERIOD_LENGTHS[period]
 
   const start = { total: 0, started: 0, toReview: 0, developed: 0, done: 0 }
   const end = { total: 0, started: 0, toReview: 0, developed: 0, done: 0 }
@@ -166,7 +263,7 @@ export function describeChanges(
     }
   }
 
-  return (
+  let description =
     `> ${header}\n` +
     buildMetrics(start.total, end.total, [
       { label: 'To Do', start: start.started, end: end.started, velocities: velocities?.started },
@@ -184,5 +281,9 @@ export function describeChanges(
       },
       { label: 'Unfinished', start: start.done, end: end.done, velocities: velocities?.done },
     ])
-  )
+  if (withChangesPath) {
+    const changes = await describeChanges(withChangesPath, period, issues)
+    if (changes) description += `> ${changes}`
+  }
+  return `${description}\n`
 }

@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 
 import {
   Chart,
@@ -10,11 +10,11 @@ import {
   makeVelocityChart,
 } from './charts'
 import { Options, parseOptions } from './config'
-import { describeChanges } from './description'
+import { describeWorkState } from './description'
 import { fetchIssues } from './jira'
 import { makePointBuckets, makePointBucketVelocities } from './processing'
 import { postChartToChannel } from './slack'
-import { DAY_IN_MSECS, WEEK_IN_MSECS } from './time'
+import { DAY_IN_MSECS, formatDate, WEEK_IN_MSECS } from './time'
 
 function once<T>(callback: () => T): () => T {
   let hasResult = false
@@ -91,10 +91,36 @@ async function runChartBot(options: Options) {
   const initialCommentSections = [
     options.summary,
     options.withDailyDescription &&
-      describeChanges(options.withDailyDescription, issues, DAY_IN_MSECS),
+      (await describeWorkState(
+        options.withDailyDescription,
+        issues,
+        'day',
+        options.withDailyChanges,
+      )),
     options.withWeeklyDescription &&
-      describeChanges(options.withWeeklyDescription, issues, WEEK_IN_MSECS, getWeeklyVelocities()),
+      (await describeWorkState(
+        options.withWeeklyDescription,
+        issues,
+        'week',
+        options.withWeeklyChanges,
+        getWeeklyVelocities(),
+      )),
   ].filter((v) => Boolean(v))
+
+  const dataPaths = Array.from(
+    new Set([options.withDailyChanges, options.withWeeklyChanges].filter((v) => Boolean(v))),
+  )
+  if (dataPaths.length) {
+    const jiraData = JSON.stringify(issues)
+    const monthPrefix = formatDate(new Date())
+    await Promise.all(
+      dataPaths.map(async (path) => {
+        const fullPath = `${path}/${monthPrefix}`
+        await mkdir(fullPath, { recursive: true })
+        await writeFile(`${fullPath}/jira.json`, jiraData)
+      }),
+    )
+  }
 
   if (channel) {
     await postChartToChannel(

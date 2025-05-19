@@ -54,6 +54,8 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   getInputMock.mockReturnValueOnce(mockedConfig.summary ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.withDailyDescription ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.withWeeklyDescription ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.withDailyChanges ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.withWeeklyChanges ?? '')
 }
 
 it('can parse entire config', () => {
@@ -95,6 +97,8 @@ it('can parse entire config', () => {
     summary: '',
     withDailyDescription: '',
     withWeeklyDescription: '',
+    withDailyChanges: '',
+    withWeeklyChanges: '',
   })
 })
 

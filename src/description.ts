@@ -1,7 +1,38 @@
 import { JiraIssue } from './jira'
 import { PointBucketVelocities } from './processing'
 
-const longestHeadingLength = 'Not Yet Ready for QA'.length + 2
+interface TableCell {
+  content: string
+  prefix?: string
+  suffix?: string
+  padEnd?: boolean
+}
+
+const makeJiraTable = (rows: TableCell[][]): string => {
+  const nColumns = rows[0].length
+  const paddings: number[] = []
+  for (let i = 0; i < nColumns; ++i) {
+    paddings.push(Math.max(...rows.map((row) => row[i]?.content.length ?? 0)))
+  }
+
+  const rawData = rows
+    .map((cells) => {
+      return cells
+        .map((cell, idx) => {
+          const padding = paddings[idx]!
+          let line = cell.prefix ?? ''
+          line += cell.padEnd
+            ? cell.content.padEnd(padding, ' ')
+            : cell.content.padStart(padding, ' ')
+          line += cell.suffix ?? ''
+          return line
+        })
+        .join(' ')
+    })
+    .join('\n')
+
+  return '```\n' + rawData + '\n```'
+}
 
 const percentage = (count: number, total: number) =>
   Math.round((total / count) * 100).toString() + '%'
@@ -17,8 +48,6 @@ function meanOfVelocities(values: number[]): string {
   return (sum / (values.length - 2)).toFixed(1)
 }
 
-const numberOfDigits = (value: number): number => Math.floor(Math.log10(value)) + 1
-
 function buildMetrics(
   startTotal: number,
   endTotal: number,
@@ -27,8 +56,8 @@ function buildMetrics(
   const enhancedMetrics = metrics.map((metric) => {
     const diff = metric.start - metric.end
     const diffDisplay = diff > 0 ? `+${diff}` : diff.toString()
-    const startDisplay = endTotal - metric.start
-    const endDisplay = endTotal - metric.end
+    const start = endTotal - metric.start
+    const end = endTotal - metric.end
 
     const diffPercentage = Math.round(((metric.start - metric.end) / endTotal) * 100)
     const diffPercentageDisplay = diffPercentage > 0 ? `+${diffPercentage}%` : `${diffPercentage}%`
@@ -36,11 +65,11 @@ function buildMetrics(
     return {
       label: metric.label,
       velocities: metric.velocities,
-      startDisplay,
-      endDisplay,
+      startDisplay: start.toString(),
+      endDisplay: end.toString(),
       diffDisplay,
-      startPercentage: percentage(endTotal, startDisplay),
-      endPercentage: percentage(endTotal, endDisplay),
+      startPercentage: percentage(endTotal, start),
+      endPercentage: percentage(endTotal, end),
       diffPercentage: diffPercentageDisplay,
     }
   })
@@ -50,8 +79,8 @@ function buildMetrics(
   enhancedMetrics.push({
     label: 'Total',
     velocities: undefined,
-    startDisplay: startTotal,
-    endDisplay: endTotal,
+    startDisplay: startTotal.toString(),
+    endDisplay: endTotal.toString(),
     diffDisplay: totalDiff > 0 ? `+${totalDiff}` : totalDiff.toString(),
     startPercentage: percentage(endTotal, startTotal),
     endPercentage: '100%',
@@ -59,62 +88,27 @@ function buildMetrics(
       totalDiffPercentage > 0 ? `+${totalDiffPercentage}%` : `${totalDiffPercentage}%`,
   })
 
-  const maxMetricLength = Math.max(
-    ...enhancedMetrics.flatMap(({ startDisplay, endDisplay }) => [
-      numberOfDigits(startDisplay),
-      numberOfDigits(endDisplay),
-    ]),
-  )
-
-  // TODO: use 4 when displaying totals because the start will always be 100%
-  const startPercentagePad = Math.max(
-    ...enhancedMetrics.map(({ startPercentage }) => startPercentage.length),
-  )
-  const endPercentagePad = Math.max(
-    ...enhancedMetrics.map(({ endPercentage }) => endPercentage.length),
-  )
-
-  const diffPad = Math.max(...enhancedMetrics.map(({ diffDisplay }) => diffDisplay.length))
-  const diffPercentagePad = Math.max(
-    ...enhancedMetrics.map(({ diffPercentage }) => diffPercentage.length),
-  )
-
-  return enhancedMetrics
-    .map(
-      ({
-        label,
-        startDisplay,
-        endDisplay,
-        startPercentage,
-        endPercentage,
-        diffDisplay,
-        diffPercentage,
-        velocities,
-      }) => {
-        let lineContent =
-          (label + ':').padEnd(longestHeadingLength, ' ') +
-          ' ' +
-          startDisplay.toString().padStart(maxMetricLength, ' ') +
-          ' [' +
-          startPercentage.padStart(startPercentagePad) +
-          '] -> ' +
-          endDisplay.toString().padStart(maxMetricLength, ' ') +
-          ' [' +
-          endPercentage.padStart(endPercentagePad) +
-          '] (' +
-          diffDisplay.toString().padStart(diffPad, ' ') +
-          ' [' +
-          diffPercentage.padStart(diffPercentagePad) +
-          '])'
-
-        if (velocities?.length && velocities.length > 2) {
-          lineContent += ` - Mean Velocity: ${meanOfVelocities(velocities)}`
+  return (
+    '> ' +
+    makeJiraTable(
+      enhancedMetrics.map((metric) => {
+        const cells: TableCell[] = [
+          { content: `${metric.label}:`, padEnd: true },
+          { content: metric.startDisplay.toString() },
+          { content: metric.startPercentage, prefix: '[', suffix: '] ->' },
+          { content: metric.endDisplay.toString() },
+          { content: metric.endPercentage, prefix: '[', suffix: ']' },
+          { content: metric.diffDisplay, prefix: '(' },
+          { content: metric.diffPercentage, prefix: '[', suffix: '])' },
+        ]
+        if (metric.velocities?.length && metric.velocities.length > 2) {
+          cells.push({ content: meanOfVelocities(metric.velocities), prefix: '- Mean Velocity: ' })
         }
-
-        return `> \`${lineContent}\``
-      },
-    )
-    .join('\n')
+        return cells
+      }),
+    ) +
+    '\n'
+  )
 }
 
 export function describeChanges(

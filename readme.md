@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: insidewhy/action-jira-story-point-charts@v0
+      - uses: insidewhy/action-jira-story-point-charts@v1
         with:
           jira-token: ${{ secrets.JIRA_TOKEN }}
           jira-user: ${{ secrets.JIRA_USER }}
@@ -194,6 +194,97 @@ with-daily-description: Daily description heading
 with-weekly-description: Weekly description heading
 ```
 
+This report will look something like this:
+
+```
+To Do:                 83 [15%] ->  32 [  6%] (-51 [ -9%]) - Mean Velocity: 30.7
+Not Yet In Review:    111 [20%] ->  48 [  9%] (-63 [-11%]) - Mean Velocity: 31.6
+Not Yet Ready for QA: 112 [20%] ->  56 [ 10%] (-56 [-10%]) - Mean Velocity: 29.7
+Unfinished:           239 [43%] -> 158 [ 28%] (-81 [-15%]) - Mean Velocity: 22.7
+Total:                528 [95%] -> 556 [100%] (+28 [ +5%])
+```
+
+#### Textual descriptions with ticket changes
+
+Information regarding tickets changes can be produced in the textual report and would look something like this:
+
+```
+PJ-123: Not Existing -> Ready for QA - Story points [0 ->  2]
+PJ-125: Ready for QA -> In test      - Story points [1 ->  1]
+PJ-479: To Do        -> To Do        - Story points [3 ->  5]
+PJ-251:        To Do -> Deleted      - Story points [1 ->  0]
+
+Total Story Point Change: +3
+```
+
+It is possible to retrieve ticket changes over time using the jira APIs but this involves one API call per ticket which can slow down the report generation and can easily exceed the jira API rate limit of 500 requests per five minutes.
+
+To work around this the action can store ticket data each time it is run, if running the report at the same time each day/week then the previous day or week's ticket data is suitable to generate a report showing how tickets have changed since the last day/week.
+
+The `with-daily-changes` and `with-weekly-changes` options can be used to add this data to the ticked description report and will cause the action to store data in a directory structure so historical data can be read for each day.
+This options should be passed a path to store/read the historic data from e.g.
+
+```yaml
+with-daily-changes: /tmp/action-jira-story-points-chart-data
+with-weekly-changes: /tmp/action-jira-story-points-chart-data
+```
+
+When this configuration is used then this data should be persisted across actions, neither github artifacts or github caching is suitable to store this data, AWS S3 or equivalent could be one choice to store this data.
+The following steps could be used in a github action workflow to load and persist the data from S3:
+
+```yaml
+name: chart-bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      slack-channel:
+        description: Slack channel id
+
+  # Run at 6.30pm SGT (10.30am UTC) Monday to Friday
+  schedule:
+    - cron: '30 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chart-bot:
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-action-data-bucket-uploader
+          aws-region: ap-southeast-1
+
+      - name: Sync chartbot action data from s3
+        run: aws s3 sync s3://${{ secrets.ACTION_DATA_S3_BUCKET }}/action-jira-story-points-chart-data/ /tmp/action-jira-story-points-chart-data
+
+      - uses: insidewhy/action-jira-story-point-charts@v1
+        with:
+          jira-token: ${{ secrets.JIRA_TOKEN }}
+          jira-user: ${{ secrets.JIRA_USER }}
+          jira-base-url: https://myjiraurl.atlassian.net
+          slack-channel: C42PZTP3ECZ
+          slack-token: ${{ secrets.SLACK_TOKEN }}
+          story-point-estimate: 5
+          with-daily-description: '*Daily Report*'
+          with-weekly-description: '*Weekly Report*'
+          with-daily-changes: /tmp/action-jira-story-points-chart-data
+          with-weekly-changes: /tmp/action-jira-story-points-chart-data
+
+      - name: Sync chartbot action data to s3
+        if: github.event_name == 'schedule'
+        run: aws s3 sync /tmp/action-jira-story-points-chart-data s3://${{ secrets.ACTION_DATA_S3_BUCKET }}/action-jira-story-points-chart-data
+```
+
+This [example terraform configuration](./etc/terraform.tf) could be used to create a bucket which can be used in the above configuration (with the `locals` amended to match the secret `ACTION_DATA_S3_BUCKET` and the path to the github project).
+
 ## Testing the action locally
 
 There are unit tests:
@@ -263,4 +354,4 @@ The 5 story points being added and the 5 story points completed during week two 
 Perfect information is rarely available from the beginning of a release.
 It is hard for many teams to accurately track what work should be present in a sprint before it begins let alone an entire release, this often leads to sprint burn down charts that remain flat or increase over time.
 By considering that the current story points in a release should always have been there, this can lead to more accurate tracking of progress towards completion.
-Given that charts are being posted on a recurring basis into one or more slack channels, information about story points being added to a release can still be determined by comparing charts.
+Given that charts are being posted on a recurring basis into one or more slack channels, information about story points being added to a release can still be determined by comparing charts or the `with-weekly-description`/`with-weekly-changes` and/or `with-daily-description`/`with-daily-changes` option pairs can be used to add information about story point changes to the textual report.

@@ -11,8 +11,11 @@ runs:
     - name: Install Dependencies
       shell: bash
       run: |
+        wget https://github.com/insidewhy/pisnge/releases/latest/download/pisnge-ubuntu-22.04
+        mv pisnge-ubuntu-22.04 /usr/local/bin/pisnge
+        chmod a+x /usr/local/bin/pisnge
+
         cd ${{ github.action_path }}
-        cargo install pisnge
         npm install -g corepack@latest
         corepack enable
         pnpm install --only=production

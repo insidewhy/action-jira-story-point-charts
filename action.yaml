@@ -12,6 +12,7 @@ runs:
       shell: bash
       run: |
         cd ${{ github.action_path }}
+        cargo install pisnge
         npm install -g corepack@latest
         corepack enable
         pnpm install --only=production

@@ -1,6 +1,6 @@
 import { getInput } from '@actions/core'
 
-interface Status {
+export interface Status {
   name: string
   color: string
 }

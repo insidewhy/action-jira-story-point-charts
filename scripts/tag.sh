@@ -8,7 +8,8 @@ fi
 
 thisdir="$(dirname $0)"
 version=v$(jq -r .version $thisdir/../package.json)
-minor=${version%.*}
+version_no_suffix=${version%-*}
+minor=${version_no_suffix%.*}
 major=${minor%.*}
 
 echo tagging $major $minor $version

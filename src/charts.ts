@@ -1,8 +1,9 @@
 import { run as mermaidRun } from '@mermaid-js/mermaid-cli'
+import { spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 import { join as pathJoin } from 'node:path'
 
-import { Options } from './config'
+import { Options, Status } from './config'
 import { JiraIssue } from './jira'
 import { PointBuckets, PointBucketVelocities } from './processing'
 import { Period, PERIOD_LENGTHS } from './time'
@@ -12,17 +13,46 @@ export interface Chart {
   mimeType: string
 }
 
-const PIE_CHART_THEME = {
+const STORY_POINTS_BY_STATUS_PIE_CHART_THEME = {
   pieStrokeColor: 'white',
   pieOuterStrokeColor: 'white',
   pieSectionTextColor: 'white',
   pieOpacity: 1,
 }
 
+const DEFAULT_PIE_CHART_THEME = {
+  pieOpacity: 0.3,
+}
+
+function run(command: string, args: string[] = []): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args)
+
+    let stderr = ''
+
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve()
+      } else {
+        reject(new Error(stderr.trim()))
+      }
+    })
+
+    child.on('error', (err) => {
+      reject(err)
+    })
+  })
+}
+
 async function makeChartFiles(
   mmd: string,
   fileNamePrefix: string,
   options: Options,
+  usePisgne: boolean,
 ): Promise<Chart> {
   const mmdPath = pathJoin(options.output, `${fileNamePrefix}.mmd`)
   await writeFile(mmdPath, mmd)
@@ -32,7 +62,12 @@ async function makeChartFiles(
   } else {
     const imagePath = pathJoin(options.output, `${fileNamePrefix}.png`) as `${string}.png`
 
-    await mermaidRun(mmdPath, imagePath)
+    if (usePisgne) {
+      await run('pisnge', ['-i', mmdPath, '-o', imagePath])
+    } else {
+      await mermaidRun(mmdPath, imagePath)
+    }
+
     return { filePath: imagePath, mimeType: 'image/png' }
   }
 }
@@ -56,19 +91,29 @@ export async function makeStoryPointsPieChart(
   if (pointsByStatus.size === 0) return undefined
 
   const pieChartEntries = [...pointsByStatus.entries()].reduce(
-    (acc: Array<{ name: string; color?: string; points: number }>, [name, points]) => {
-      const associatedStatus = Object.values(options.statuses).find(
+    (
+      acc: Array<{ name: string; color: string; points: number; index: number }>,
+      [name, points],
+    ) => {
+      const statusValues = Object.values(options.statuses) as Status[]
+      const associatedStatusIndex = statusValues.findIndex(
         ({ name: statusName }) => statusName === name.toLocaleLowerCase(),
       )
-      acc.push({ name, color: associatedStatus?.color ?? undefined, points })
+
+      acc.push({
+        name,
+        color: statusValues[associatedStatusIndex]!.color,
+        points,
+        index: associatedStatusIndex,
+      })
       return acc
     },
     [],
   )
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const theme = { ...PIE_CHART_THEME } as any
+  const theme = { ...STORY_POINTS_BY_STATUS_PIE_CHART_THEME } as any
   // mermaid forces ordering of segments so have to sort here
-  for (const [idx, entry] of pieChartEntries.sort((a, b) => b.points - a.points).entries()) {
+  for (const [idx, entry] of pieChartEntries.sort((a, b) => a.index - b.index).entries()) {
     if (entry.color) {
       theme[`pie${idx + 1}`] = entry.color
     }
@@ -78,7 +123,7 @@ export async function makeStoryPointsPieChart(
     `pie showData title Story points by status\n` +
     pieChartEntries.map((entry) => `  "${entry.name}": ${entry.points}\n`).join('')
 
-  return makeChartFiles(mmd, 'storypoints-by-status-pie', options)
+  return makeChartFiles(mmd, 'storypoints-by-status-pie', options, true)
 }
 
 const rangeTo = (limit: number) => Array.from(new Array(limit), (_, i) => i)
@@ -165,7 +210,7 @@ export async function makeRemainingStoryPointsLineChart(
     `  y-axis "Story points" ${minY} --> ${maxY}\n` +
     lines.join('\n')
 
-  return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options)
+  return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options, false)
 }
 
 export async function makeVelocityChart(
@@ -216,7 +261,7 @@ export async function makeVelocityChart(
     `  y-axis "Story points" 0 --> ${maxY}\n` +
     lines.join('\n')
 
-  return makeChartFiles(mmd, 'storypoint-velocity-by-week', options)
+  return makeChartFiles(mmd, 'storypoint-velocity-by-week', options, false)
 }
 
 export async function makeOpenIssuesChart(
@@ -288,7 +333,7 @@ export async function makeOpenIssuesChart(
     `  bar [${readyForQABar.join(', ')}]` +
     `  bar [${inReviewBarOnTop.join(', ')}]`
 
-  return makeChartFiles(mmd, 'open-issues', options)
+  return makeChartFiles(mmd, 'open-issues', options, false)
 }
 
 export async function makeAverageWeelyVelocityByDeveloperChart(
@@ -355,12 +400,14 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
   }
 
   const mmd =
+    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(DEFAULT_PIE_CHART_THEME)}}}%%\n` +
     `pie showData title Average weekly story point velocity\n` +
     Array.from(velocities.entries())
+      .sort((a, b) => b[1] - a[1])
       .map(([developer, points]) => `  "${developer}": ${points.toFixed(1)}\n`)
       .join('')
 
-  return makeChartFiles(mmd, 'average-weekly-storypoint-velocity-per-developer-pie', options)
+  return makeChartFiles(mmd, 'average-weekly-storypoint-velocity-per-developer-pie', options, true)
 }
 
 export async function makeVelocityByDeveloperChart(
@@ -398,10 +445,17 @@ export async function makeVelocityByDeveloperChart(
   const filenameLabel = label.replace(/ /g, '-')
 
   const mmd =
+    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(DEFAULT_PIE_CHART_THEME)}}}%%\n` +
     `pie showData title Story point velocity ${label}\n` +
     Array.from(velocities.entries())
+      .sort((a, b) => b[1] - a[1])
       .map(([developer, points]) => `  "${developer}": ${points}\n`)
       .join('')
 
-  return makeChartFiles(mmd, `storypoint-velocity-per-developer-${filenameLabel}-pie`, options)
+  return makeChartFiles(
+    mmd,
+    `storypoint-velocity-per-developer-${filenameLabel}-pie`,
+    options,
+    true,
+  )
 }

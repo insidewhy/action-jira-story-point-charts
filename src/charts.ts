@@ -315,12 +315,7 @@ export async function makeOpenIssuesChart(
     },
   }
   const inReviewBar = sorted.map((stat) => stat.daysReadyForReview)
-  // for some reason mermaid shows a small bar even when the value is set to 0, setting it to
-  // -1 works around this, mermaid issues an error about an invalid rect but it looks better
-  const readyForQABar = sorted.map((stat) => (stat.daysReadyForQA === 0 ? -1 : stat.daysReadyForQA))
-  const inReviewBarOnTop = sorted.map((stat) => {
-    return stat.daysReadyForQA > stat.daysReadyForReview ? stat.daysReadyForReview : -1
-  })
+  const readyForQABar = sorted.map((stat) => stat.daysReadyForQA)
   const maxX = Math.max(sorted[0].daysReadyForReview, sorted[0].daysReadyForQA)
 
   const mmd =
@@ -330,10 +325,9 @@ export async function makeOpenIssuesChart(
     `  x-axis [${[...sorted.map(({ status }) => status)].join(', ')}]\n` +
     `  y-axis "Number of days in status" 0 --> ${maxX}\n` +
     `  bar [${inReviewBar.join(', ')}]\n` +
-    `  bar [${readyForQABar.join(', ')}]` +
-    `  bar [${inReviewBarOnTop.join(', ')}]`
+    `  bar [${readyForQABar.join(', ')}]`
 
-  return makeChartFiles(mmd, 'open-issues', options, false)
+  return makeChartFiles(mmd, 'open-issues', options, true)
 }
 
 export async function makeAverageWeelyVelocityByDeveloperChart(

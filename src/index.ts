@@ -8,11 +8,17 @@ import {
   makeStoryPointsPieChart,
   makeVelocityByDeveloperChart,
   makeVelocityChart,
+  makeWorkItemChangesChart,
 } from './charts'
 import { Options, parseOptions } from './config'
 import { describeWorkState } from './description'
 import { fetchIssues } from './jira'
-import { makePointBuckets, makePointBucketVelocities } from './processing'
+import {
+  loadHistoricalData,
+  loadIssueChanges,
+  makePointBuckets,
+  makePointBucketVelocities,
+} from './processing'
 import { postChartToChannel } from './slack'
 import { DAY_IN_MSECS, formatDate, WEEK_IN_MSECS } from './time'
 
@@ -41,6 +47,21 @@ async function runChartBot(options: Options) {
   })
 
   const getDailyPointBuckets = once(() => makePointBuckets(issues, DAY_IN_MSECS, 7))
+
+  const loadHistoricalDataFromPreviousDay = once(() =>
+    loadHistoricalData(options.storeWorkItemHistory, 'day'),
+  )
+  const loadHistoricalDataFromPreviousWeek = once(() =>
+    loadHistoricalData(options.storeWorkItemHistory, 'week'),
+  )
+  const getChangesFromPreviousDay = once(async () => {
+    const comparisonIssues = await loadHistoricalDataFromPreviousDay()
+    return comparisonIssues && loadIssueChanges(issues, comparisonIssues)
+  })
+  const getChangesFromPreviousWeek = once(async () => {
+    const comparisonIssues = await loadHistoricalDataFromPreviousWeek()
+    return comparisonIssues && loadIssueChanges(issues, comparisonIssues)
+  })
 
   const allCharts = new Map<string, () => Promise<Chart | undefined>>([
     [
@@ -82,6 +103,14 @@ async function runChartBot(options: Options) {
       'velocity-by-developer-last-week',
       async () => makeVelocityByDeveloperChart(issues, 1, 'week', 1, options),
     ],
+    [
+      'daily-work-item-changes',
+      async () => makeWorkItemChangesChart(await getChangesFromPreviousDay(), 'day', options),
+    ],
+    [
+      'weekly-work-item-changes',
+      async () => makeWorkItemChangesChart(await getChangesFromPreviousWeek(), 'week', options),
+    ],
   ])
 
   const { channel } = options
@@ -94,32 +123,25 @@ async function runChartBot(options: Options) {
       (await describeWorkState(
         options.withDailyDescription,
         issues,
+        await loadHistoricalDataFromPreviousDay(),
         'day',
-        options.withDailyChanges,
       )),
     options.withWeeklyDescription &&
       (await describeWorkState(
         options.withWeeklyDescription,
         issues,
+        await loadHistoricalDataFromPreviousWeek(),
         'week',
-        options.withWeeklyChanges,
         getWeeklyVelocities(),
       )),
   ].filter((v) => Boolean(v))
 
-  const dataPaths = Array.from(
-    new Set([options.withDailyChanges, options.withWeeklyChanges].filter((v) => Boolean(v))),
-  )
-  if (dataPaths.length) {
+  if (options.storeWorkItemHistory) {
     const jiraData = JSON.stringify(issues)
     const monthPrefix = formatDate(new Date())
-    await Promise.all(
-      dataPaths.map(async (path) => {
-        const fullPath = `${path}/${monthPrefix}`
-        await mkdir(fullPath, { recursive: true })
-        await writeFile(`${fullPath}/jira.json`, jiraData)
-      }),
-    )
+    const fullPath = `${options.storeWorkItemHistory}/${monthPrefix}`
+    await mkdir(fullPath, { recursive: true })
+    await writeFile(`${fullPath}/jira.json`, jiraData)
   }
 
   if (channel) {

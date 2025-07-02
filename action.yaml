@@ -35,8 +35,7 @@ runs:
         INPUT_SUMMARY: ${{inputs.summary}}
         INPUT_WITH-DAILY-DESCRIPTION: ${{inputs.with-daily-description}}
         INPUT_WITH-WEEKLY-DESCRIPTION: ${{inputs.with-weekly-description}}
-        INPUT_WITH-DAILY-CHANGES: ${{inputs.with-daily-changes}}
-        INPUT_WITH-WEEKLY-CHANGES: ${{inputs.with-weekly-changes}}
+        INPUT_STORE-WORK-ITEM-HISTORY: ${{inputs.store-work-item-history}}
       run: |
         cd ${{ github.action_path }}
         node lib/index.cjs
@@ -75,7 +74,5 @@ inputs:
     description: Add a textual summary of changes for this week with the given heading
   with-daily-description:
     description: Add a textual summary of changes for this day with the given heading
-  with-daily-changes:
-    description: Add a textual summary of ticket changes since the previous day using data files at the given path, this will also cause data to be written to this path for the present day
-  with-weekly-changes:
-    description: Add a textual summary of ticket changes since the previous week using files at the given path, this will also cause data to be written to this path for the present day
+  store-work-item-history:
+    description: Read and store work item history from/to the file system, this is required for the weekly-work-item-changes and daily-work-item-changes charts and also enhances the descriptions provided by with-weekly-description and with-daily-description

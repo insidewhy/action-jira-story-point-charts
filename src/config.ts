@@ -40,8 +40,7 @@ export interface Options {
   summary: string
   withDailyDescription: string
   withWeeklyDescription: string
-  withDailyChanges: string
-  withWeeklyChanges: string
+  storeWorkItemHistory?: string
 }
 
 // have to write the files because the mermaid API requires that
@@ -60,6 +59,8 @@ const AVAILABLE_CHARTS = new Set([
   'velocity-by-developer',
   'velocity-by-developer-this-week',
   'velocity-by-developer-last-week',
+  'daily-work-item-changes',
+  'weekly-work-item-changes',
 ])
 
 const DEFAULT_STATUSES: Statuses = {
@@ -121,21 +122,21 @@ export function parseOptions(): Options {
   const summary = getInput('summary')
   const withDailyDescription = getInput('with-daily-description')
   const withWeeklyDescription = getInput('with-weekly-description')
-  const withDailyChanges = getInput('with-daily-changes')
-  const withWeeklyChanges = getInput('with-weekly-changes')
-
-  if (withDailyChanges && !withDailyDescription) {
-    throw new Error('Cannot use with-daily-changes without with-daily-description')
-  }
-  if (withWeeklyChanges && !withWeeklyDescription) {
-    throw new Error('Cannot use with-weekly-changes without with-weekly-description')
-  }
+  const storeWorkItemHistory = getInput('store-work-item-history')
 
   let charts = DEFAULT_CHARTS
   if (!/^\s*$/.test(chartsRaw)) {
     charts = chartsRaw.split(/\s+/)
     for (const chart of charts) {
       if (!AVAILABLE_CHARTS.has(chart)) throw new Error(`Chart type ${chart} is not supported`)
+    }
+  }
+
+  if (charts.includes('daily-work-item-changes') || charts.includes('weekly-work-item-changes')) {
+    if (!storeWorkItemHistory) {
+      throw new Error(
+        "Cannot use 'daily-work-item-changes' or 'weekly-work-item-changes' without store-work-item-history option",
+      )
     }
   }
 
@@ -210,7 +211,6 @@ export function parseOptions(): Options {
     summary,
     withDailyDescription,
     withWeeklyDescription,
-    withDailyChanges,
-    withWeeklyChanges,
+    storeWorkItemHistory,
   }
 }

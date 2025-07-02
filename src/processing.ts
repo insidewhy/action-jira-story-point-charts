@@ -1,4 +1,7 @@
+import { readFile } from 'node:fs/promises'
+
 import { JiraIssue } from './jira'
+import { formatDate, Period } from './time'
 
 export interface PointBuckets {
   started: number[]
@@ -182,4 +185,78 @@ export function makePointBucketVelocities(pointBuckets: PointBuckets): PointBuck
   }
 
   return velocities
+}
+
+export async function loadHistoricalData(
+  dataPath: string | undefined,
+  period: Period,
+): Promise<JiraIssue[] | undefined> {
+  if (!dataPath) return undefined
+
+  const previousDate = new Date()
+  if (period === 'day') {
+    if (previousDate.getDay() === 1) {
+      // on a monday use friday as the previous day
+      previousDate.setDate(previousDate.getDate() - 3)
+    } else {
+      previousDate.setDate(previousDate.getDate() - 1)
+    }
+  } else {
+    previousDate.setDate(previousDate.getDate() - 7)
+  }
+
+  const jiraDataPath = `${dataPath}/${formatDate(previousDate)}/jira.json`
+  try {
+    return JSON.parse((await readFile(jiraDataPath)).toString())
+  } catch {
+    return undefined
+  }
+}
+
+export interface IssueChange {
+  key: string
+  storyPoints?: number
+  formerStoryPoints?: number
+  status?: string
+  formerStatus?: string
+}
+
+export async function loadIssueChanges(
+  issues: JiraIssue[],
+  comparisonIssues: JiraIssue[],
+): Promise<IssueChange[]> {
+  const changes: IssueChange[] = []
+  const comparisonIssuesByKey = new Map(comparisonIssues.map((issue) => [issue.key, issue]))
+
+  for (const issue of issues) {
+    const comparison = comparisonIssuesByKey.get(issue.key)
+    if (!comparison) {
+      changes.push({
+        key: issue.key,
+        storyPoints: issue.storyPoints,
+        status: issue.status,
+      })
+    } else if (comparison.storyPoints !== issue.storyPoints || comparison.status !== issue.status) {
+      changes.push({
+        key: issue.key,
+        storyPoints: issue.storyPoints,
+        formerStoryPoints: comparison.storyPoints,
+        status: issue.status,
+        formerStatus: comparison.status,
+      })
+    }
+  }
+
+  const issuesByKey = new Map(issues.map((issue) => [issue.key, issue]))
+  for (const comparison of comparisonIssues) {
+    if (!issuesByKey.has(comparison.key)) {
+      changes.push({
+        key: comparison.key,
+        formerStoryPoints: comparison.storyPoints,
+        formerStatus: comparison.status,
+      })
+    }
+  }
+
+  return changes
 }

@@ -1,8 +1,6 @@
-import { readFile } from 'node:fs/promises'
-
 import { JiraIssue } from './jira'
 import { PointBucketVelocities } from './processing'
-import { formatDate, Period, PERIOD_LENGTHS } from './time'
+import { Period, PERIOD_LENGTHS } from './time'
 
 interface TableCell {
   content: string
@@ -117,102 +115,11 @@ function buildMetrics(
   )
 }
 
-// Uses strings rather than numbers since its used to build a slack table
-interface IssueChange {
-  key: string
-  storyPoints?: string
-  formerStoryPoints?: string
-  storyPointDiff: string
-  status?: string
-  formerStatus?: string
-}
-
-export async function describeChanges(
-  dataPath: string,
-  period: Period,
-  issues: JiraIssue[],
-): Promise<string | undefined> {
-  const previousDate = new Date()
-  if (period === 'day') {
-    if (previousDate.getDay() === 1) {
-      // on a monday use friday as the previous day
-      previousDate.setDate(previousDate.getDate() - 3)
-    } else {
-      previousDate.setDate(previousDate.getDate() - 1)
-    }
-  } else {
-    previousDate.setDate(previousDate.getDate() - 7)
-  }
-
-  const jiraDataPath = `${dataPath}/${formatDate(previousDate)}/jira.json`
-  const comparisonIssues: JiraIssue[] = []
-
-  try {
-    const comparisonIssueData = (await readFile(jiraDataPath)).toString()
-    comparisonIssues.push(...JSON.parse(comparisonIssueData))
-  } catch {
-    return undefined
-  }
-
-  const changes: IssueChange[] = []
-  const comparisonIssuesByKey = new Map(comparisonIssues.map((issue) => [issue.key, issue]))
-  let totalStoryPointDiff = 0
-
-  for (const issue of issues) {
-    const comparison = comparisonIssuesByKey.get(issue.key)
-    if (!comparison) {
-      changes.push({
-        key: issue.key,
-        storyPoints: issue.storyPoints.toString(),
-        status: issue.status,
-        storyPointDiff: issue.storyPoints.toString(),
-      })
-      totalStoryPointDiff += issue.storyPoints
-    } else if (comparison.storyPoints !== issue.storyPoints || comparison.status !== issue.status) {
-      const storyPointDiff = issue.storyPoints - comparison.storyPoints
-      totalStoryPointDiff += storyPointDiff
-      changes.push({
-        key: issue.key,
-        storyPoints: issue.storyPoints.toString(),
-        formerStoryPoints: comparison.storyPoints.toString(),
-        status: issue.status,
-        formerStatus: comparison.status,
-        storyPointDiff: formatDiff(issue.storyPoints - comparison.storyPoints),
-      })
-    }
-  }
-
-  const issuesByKey = new Map(issues.map((issue) => [issue.key, issue]))
-  for (const comparison of comparisonIssues) {
-    if (!issuesByKey.has(comparison.key)) {
-      changes.push({
-        key: comparison.key,
-        formerStoryPoints: comparison.storyPoints.toString(),
-        formerStatus: comparison.status,
-        storyPointDiff: formatDiff(comparison.storyPoints),
-      })
-    }
-  }
-
-  return makeJiraTable(
-    changes.map((change) => {
-      return [
-        { content: `${change.key}:` },
-        { content: `${change.formerStatus ?? 'Not Existing'}`, suffix: ' ->' },
-        { content: `${change.status ?? 'Deleted'}`, padEnd: true },
-        { content: `${change.formerStoryPoints ?? '0'}`, prefix: '- Story points [' },
-        { content: `${change.storyPoints ?? '0'}`, prefix: '-> ', suffix: ']' },
-      ]
-    }),
-    `\nTotal Story Point Change: ${formatDiff(totalStoryPointDiff)}`,
-  )
-}
-
 export async function describeWorkState(
   header: string,
   issues: JiraIssue[],
+  comparisonIssues: JiraIssue[] | undefined,
   period: Period,
-  withChangesPath?: string,
   velocities?: PointBucketVelocities,
 ): Promise<string | undefined> {
   const periodStart = Date.now() - PERIOD_LENGTHS[period]
@@ -264,7 +171,43 @@ export async function describeWorkState(
     }
   }
 
-  let description =
+  if (comparisonIssues) {
+    start.total = 0
+    start.started = 0
+    start.toReview = 0
+    start.developed = 0
+    start.done = 0
+
+    for (const issue of comparisonIssues) {
+      const {
+        storyPoints,
+        endTime: resolutionTime,
+        devCompleteTime,
+        readyForReviewTime,
+        startedTime,
+      } = issue
+
+      start.total += storyPoints
+
+      if (startedTime) {
+        start.started += storyPoints
+      }
+
+      if (readyForReviewTime) {
+        start.toReview += storyPoints
+      }
+
+      if (devCompleteTime) {
+        start.developed += storyPoints
+      }
+
+      if (resolutionTime) {
+        start.done += storyPoints
+      }
+    }
+  }
+
+  return (
     `> ${header}\n` +
     buildMetrics(start.total, end.total, [
       { label: 'To Do', start: start.started, end: end.started, velocities: velocities?.started },
@@ -281,10 +224,7 @@ export async function describeWorkState(
         velocities: velocities?.developed,
       },
       { label: 'Unfinished', start: start.done, end: end.done, velocities: velocities?.done },
-    ])
-  if (withChangesPath) {
-    const changes = await describeChanges(withChangesPath, period, issues)
-    if (changes) description += `> ${changes}`
-  }
-  return `${description}\n`
+    ]) +
+    '\n'
+  )
 }

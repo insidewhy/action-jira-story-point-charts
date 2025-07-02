@@ -4,7 +4,7 @@ import { join as pathJoin } from 'node:path'
 
 import { Options, Status } from './config'
 import { JiraIssue } from './jira'
-import { PointBuckets, PointBucketVelocities } from './processing'
+import { IssueChange, PointBuckets, PointBucketVelocities } from './processing'
 import { Period, PERIOD_LENGTHS } from './time'
 
 export interface Chart {
@@ -438,4 +438,25 @@ export async function makeVelocityByDeveloperChart(
       .join('')
 
   return makeChartFiles(mmd, `storypoint-velocity-per-developer-${filenameLabel}-pie`, options)
+}
+
+export async function makeWorkItemChangesChart(
+  changes: IssueChange[] | undefined,
+  period: Period,
+  options: Options,
+): Promise<Chart | undefined> {
+  if (!changes?.length) return undefined
+
+  const changeRows = changes.map((change) => {
+    return `  ${change.key} ${change.formerStatus ?? 'Not Existing'}: ${change.formerStoryPoints ?? 0} -> ${change.status ?? 'Not Existing'}: ${change.storyPoints ?? 0}`
+  })
+
+  // TODO: generate columns dynamically based on configured statuses
+  const mmd =
+    "%%{init: { 'width': 1100 }}%%\nwork-item-movement\n" +
+    `  title 'Work item changes since previous ${period}'\n` +
+    '  columns [Not Existing, Draft, To Do, In Progress, In Review, Ready for QA, In Test, Done]\n' +
+    changeRows.join('\n')
+
+  return makeChartFiles(mmd, `work-item-changes-${period}`, options)
 }

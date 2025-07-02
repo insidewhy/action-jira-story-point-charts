@@ -39,7 +39,7 @@ runs:
         INPUT_WITH-WEEKLY-CHANGES: ${{inputs.with-weekly-changes}}
       run: |
         cd ${{ github.action_path }}
-        node lib/index.mjs
+        node lib/index.cjs
 branding:
   icon: check-square
   color: blue

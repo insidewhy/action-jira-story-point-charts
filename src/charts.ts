@@ -1,4 +1,3 @@
-import { run as mermaidRun } from '@mermaid-js/mermaid-cli'
 import { spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 import { join as pathJoin } from 'node:path'
@@ -52,7 +51,6 @@ async function makeChartFiles(
   mmd: string,
   fileNamePrefix: string,
   options: Options,
-  usePisgne: boolean,
 ): Promise<Chart> {
   const mmdPath = pathJoin(options.output, `${fileNamePrefix}.mmd`)
   await writeFile(mmdPath, mmd)
@@ -61,13 +59,7 @@ async function makeChartFiles(
     return { filePath: mmdPath, mimeType: 'text/vnd.mermaid' }
   } else {
     const imagePath = pathJoin(options.output, `${fileNamePrefix}.png`) as `${string}.png`
-
-    if (usePisgne) {
-      await run('pisnge', ['-i', mmdPath, '-o', imagePath])
-    } else {
-      await mermaidRun(mmdPath, imagePath)
-    }
-
+    await run('pisnge', ['-i', mmdPath, '-o', imagePath])
     return { filePath: imagePath, mimeType: 'image/png' }
   }
 }
@@ -112,7 +104,6 @@ export async function makeStoryPointsPieChart(
   )
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const theme = { ...STORY_POINTS_BY_STATUS_PIE_CHART_THEME } as any
-  // mermaid forces ordering of segments so have to sort here
   for (const [idx, entry] of pieChartEntries.sort((a, b) => a.index - b.index).entries()) {
     if (entry.color) {
       theme[`pie${idx + 1}`] = entry.color
@@ -123,7 +114,7 @@ export async function makeStoryPointsPieChart(
     `pie showData title Story points by status\n` +
     pieChartEntries.map((entry) => `  "${entry.name}": ${entry.points}\n`).join('')
 
-  return makeChartFiles(mmd, 'storypoints-by-status-pie', options, true)
+  return makeChartFiles(mmd, 'storypoints-by-status-pie', options)
 }
 
 const rangeTo = (limit: number) => Array.from(new Array(limit), (_, i) => i)
@@ -210,7 +201,7 @@ export async function makeRemainingStoryPointsLineChart(
     `  y-axis "Story points" ${minY} --> ${maxY}\n` +
     lines.join('\n')
 
-  return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options, false)
+  return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options)
 }
 
 export async function makeVelocityChart(
@@ -261,7 +252,7 @@ export async function makeVelocityChart(
     `  y-axis "Story points" 0 --> ${maxY}\n` +
     lines.join('\n')
 
-  return makeChartFiles(mmd, 'storypoint-velocity-by-week', options, false)
+  return makeChartFiles(mmd, 'storypoint-velocity-by-week', options)
 }
 
 export async function makeOpenIssuesChart(
@@ -327,7 +318,7 @@ export async function makeOpenIssuesChart(
     `  bar [${inReviewBar.join(', ')}]\n` +
     `  bar [${readyForQABar.join(', ')}]`
 
-  return makeChartFiles(mmd, 'open-issues', options, true)
+  return makeChartFiles(mmd, 'open-issues', options)
 }
 
 export async function makeAverageWeelyVelocityByDeveloperChart(
@@ -401,7 +392,7 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
       .map(([developer, points]) => `  "${developer}": ${points.toFixed(1)}\n`)
       .join('')
 
-  return makeChartFiles(mmd, 'average-weekly-storypoint-velocity-per-developer-pie', options, true)
+  return makeChartFiles(mmd, 'average-weekly-storypoint-velocity-per-developer-pie', options)
 }
 
 export async function makeVelocityByDeveloperChart(
@@ -446,10 +437,5 @@ export async function makeVelocityByDeveloperChart(
       .map(([developer, points]) => `  "${developer}": ${points}\n`)
       .join('')
 
-  return makeChartFiles(
-    mmd,
-    `storypoint-velocity-per-developer-${filenameLabel}-pie`,
-    options,
-    true,
-  )
+  return makeChartFiles(mmd, `storypoint-velocity-per-developer-${filenameLabel}-pie`, options)
 }

@@ -1,11 +1,11 @@
 {
   "name": "action-jira-story-point-charts",
-  "version": "2.0.0-rc.3",
+  "version": "2.0.0-rc.4",
   "description": "Generate story point charts from jira issues and post them to slack",
   "type": "module",
   "main": "lib/index.js",
   "scripts": {
-    "build": "esbuild --bundle --external:@mermaid-js/mermaid-cli --external:@actions/core --platform=node --format=esm src/index.ts --outfile=lib/index.mjs",
+    "build": "esbuild --bundle --platform=node src/index.ts --outfile=lib/index.cjs",
     "lint-check": "eslint .",
     "lint": "pnpm lint-check --fix",
     "format-check": "prettier --check .",
@@ -30,8 +30,7 @@
   "author": "insidewhy",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "1.11.1",
-    "@mermaid-js/mermaid-cli": "^11.4.0"
+    "@actions/core": "1.11.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.2",

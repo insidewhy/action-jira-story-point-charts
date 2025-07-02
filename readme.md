@@ -2,7 +2,7 @@
 
 A github action to generate story point charts from Jira issues and post them to a slack channel.
 
-These are examples of what the charts posted may look like:
+These are examples of what the charts posted may look like, although note that this project uses [pisnge](https://github.com/insidewhy/pisnge), a rust port of mermaid with slightly prettier charts, and the examples below are generated with mermaid:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {"pieStrokeColor":"white","pieOuterStrokeColor":"white","pieSectionTextColor":"white","pieOpacity":1,"pie1":"#43acd9","pie2":"#f15a50","pie3":"#038411","pie4":"#ff8b00","pie5":"#9c1de9"}}}%%

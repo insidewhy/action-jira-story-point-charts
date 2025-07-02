@@ -13,13 +13,14 @@ import {
 import { Options, parseOptions } from './config'
 import { describeWorkState } from './description'
 import { fetchIssues } from './jira'
+import { Pisnge } from './pisnge'
 import {
   loadHistoricalData,
   loadIssueChanges,
   makePointBuckets,
   makePointBucketVelocities,
 } from './processing'
-import { postChartToChannel } from './slack'
+import { postChartsToChannel } from './slack'
 import { DAY_IN_MSECS, formatDate, WEEK_IN_MSECS } from './time'
 
 function once<T>(callback: () => T): () => T {
@@ -35,6 +36,8 @@ function once<T>(callback: () => T): () => T {
 }
 
 async function runChartBot(options: Options) {
+  const pisnge = new Pisnge()
+  pisnge.beginDownload()
   const issues = await fetchIssues(options)
 
   await mkdir(options.output, { recursive: true })
@@ -69,47 +72,49 @@ async function runChartBot(options: Options) {
       async () => {
         const dailyPointBuckets = getDailyPointBuckets()
         return dailyPointBuckets
-          ? await makeRemainingStoryPointsLineChart(dailyPointBuckets, options, 'day', 7)
+          ? await makeRemainingStoryPointsLineChart(pisnge, dailyPointBuckets, options, 'day', 7)
           : undefined
       },
     ],
-    ['by-status', () => makeStoryPointsPieChart(issues, options)],
+    ['by-status', () => makeStoryPointsPieChart(pisnge, issues, options)],
     [
       'remaining-by-week',
       async () => {
         const weeklyPointBuckets = getWeeklyPointBuckets()
         return weeklyPointBuckets
-          ? makeRemainingStoryPointsLineChart(weeklyPointBuckets, options, 'week')
+          ? makeRemainingStoryPointsLineChart(pisnge, weeklyPointBuckets, options, 'week')
           : undefined
       },
     ],
-    ['in-review-and-test', () => makeOpenIssuesChart(issues, options)],
+    ['in-review-and-test', () => makeOpenIssuesChart(pisnge, issues, options)],
     [
       'weekly-velocity',
       async () => {
         const weeklyVelocities = getWeeklyVelocities()
-        return weeklyVelocities ? makeVelocityChart(weeklyVelocities, options) : undefined
+        return weeklyVelocities ? makeVelocityChart(pisnge, weeklyVelocities, options) : undefined
       },
     ],
     [
       'velocity-by-developer',
-      async () => makeAverageWeelyVelocityByDeveloperChart(issues, WEEK_IN_MSECS, options),
+      async () => makeAverageWeelyVelocityByDeveloperChart(pisnge, issues, WEEK_IN_MSECS, options),
     ],
     [
       'velocity-by-developer-this-week',
-      async () => makeVelocityByDeveloperChart(issues, 0, 'week', 1, options),
+      async () => makeVelocityByDeveloperChart(pisnge, issues, 0, 'week', 1, options),
     ],
     [
       'velocity-by-developer-last-week',
-      async () => makeVelocityByDeveloperChart(issues, 1, 'week', 1, options),
+      async () => makeVelocityByDeveloperChart(pisnge, issues, 1, 'week', 1, options),
     ],
     [
       'daily-work-item-changes',
-      async () => makeWorkItemChangesChart(await getChangesFromPreviousDay(), 'day', options),
+      async () =>
+        makeWorkItemChangesChart(pisnge, await getChangesFromPreviousDay(), 'day', options),
     ],
     [
       'weekly-work-item-changes',
-      async () => makeWorkItemChangesChart(await getChangesFromPreviousWeek(), 'week', options),
+      async () =>
+        makeWorkItemChangesChart(pisnge, await getChangesFromPreviousWeek(), 'week', options),
     ],
   ])
 
@@ -145,12 +150,20 @@ async function runChartBot(options: Options) {
   }
 
   if (channel) {
-    await postChartToChannel(
-      options.slackToken,
-      channel,
-      charts.filter((chart) => chart !== undefined),
-      initialCommentSections.length ? initialCommentSections.join('\n') : undefined,
-    )
+    const definedCharts = charts.filter((chart) => chart !== undefined)
+    if (definedCharts.length) {
+      await postChartsToChannel(
+        options.slackToken,
+        channel,
+        definedCharts,
+        initialCommentSections.length ? initialCommentSections.join('\n') : undefined,
+      )
+      console.log('Posted charts to slack')
+    } else {
+      console.log('No charts were produced')
+    }
+  } else {
+    console.log('Not posting any charts as channel was not configured')
   }
 }
 

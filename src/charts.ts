@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 import { join as pathJoin } from 'node:path'
 
@@ -6,6 +5,7 @@ import { Options, Status } from './config'
 import { JiraIssue } from './jira'
 import { IssueChange, PointBuckets, PointBucketVelocities } from './processing'
 import { Period, PERIOD_LENGTHS } from './time'
+import { Pisnge } from './pisnge'
 
 export interface Chart {
   filePath: string
@@ -23,31 +23,8 @@ const DEFAULT_PIE_CHART_THEME = {
   pieOpacity: 0.3,
 }
 
-function run(command: string, args: string[] = []): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args)
-
-    let stderr = ''
-
-    child.stderr?.on('data', (data) => {
-      stderr += data.toString()
-    })
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve()
-      } else {
-        reject(new Error(stderr.trim()))
-      }
-    })
-
-    child.on('error', (err) => {
-      reject(err)
-    })
-  })
-}
-
 async function makeChartFiles(
+  pisnge: Pisnge,
   mmd: string,
   fileNamePrefix: string,
   options: Options,
@@ -59,7 +36,7 @@ async function makeChartFiles(
     return { filePath: mmdPath, mimeType: 'text/vnd.mermaid' }
   } else {
     const imagePath = pathJoin(options.output, `${fileNamePrefix}.png`) as `${string}.png`
-    await run('pisnge', ['-i', mmdPath, '-o', imagePath])
+    await pisnge.run(['-i', mmdPath, '-o', imagePath])
     return { filePath: imagePath, mimeType: 'image/png' }
   }
 }
@@ -75,6 +52,7 @@ function getPointsByStatus(issues: JiraIssue[]): Map<string, number> {
 }
 
 export async function makeStoryPointsPieChart(
+  pisnge: Pisnge,
   issues: JiraIssue[],
   options: Options,
 ): Promise<Chart | undefined> {
@@ -114,7 +92,7 @@ export async function makeStoryPointsPieChart(
     `pie showData title Story points by status\n` +
     pieChartEntries.map((entry) => `  "${entry.name}": ${entry.points}\n`).join('')
 
-  return makeChartFiles(mmd, 'storypoints-by-status-pie', options)
+  return makeChartFiles(pisnge, mmd, 'storypoints-by-status-pie', options)
 }
 
 const rangeTo = (limit: number) => Array.from(new Array(limit), (_, i) => i)
@@ -122,6 +100,7 @@ const rangeTo = (limit: number) => Array.from(new Array(limit), (_, i) => i)
 const ucFirst = (str: string) => str[0].toLocaleUpperCase() + str.slice(1)
 
 export async function makeRemainingStoryPointsLineChart(
+  pisnge: Pisnge,
   pointBuckets: PointBuckets,
   options: Options,
   label: 'week' | 'day',
@@ -201,10 +180,11 @@ export async function makeRemainingStoryPointsLineChart(
     `  y-axis "Story points" ${minY} --> ${maxY}\n` +
     lines.join('\n')
 
-  return makeChartFiles(mmd, `remaining-storypoints-by-${label}`, options)
+  return makeChartFiles(pisnge, mmd, `remaining-storypoints-by-${label}`, options)
 }
 
 export async function makeVelocityChart(
+  pisnge: Pisnge,
   velocities: PointBucketVelocities,
   options: Options,
 ): Promise<Chart | undefined> {
@@ -252,10 +232,11 @@ export async function makeVelocityChart(
     `  y-axis "Story points" 0 --> ${maxY}\n` +
     lines.join('\n')
 
-  return makeChartFiles(mmd, 'storypoint-velocity-by-week', options)
+  return makeChartFiles(pisnge, mmd, 'storypoint-velocity-by-week', options)
 }
 
 export async function makeOpenIssuesChart(
+  pisnge: Pisnge,
   issues: JiraIssue[],
   options: Options,
 ): Promise<Chart | undefined> {
@@ -318,10 +299,11 @@ export async function makeOpenIssuesChart(
     `  bar [${inReviewBar.join(', ')}]\n` +
     `  bar [${readyForQABar.join(', ')}]`
 
-  return makeChartFiles(mmd, 'open-issues', options)
+  return makeChartFiles(pisnge, mmd, 'open-issues', options)
 }
 
 export async function makeAverageWeelyVelocityByDeveloperChart(
+  pisnge: Pisnge,
   issues: JiraIssue[],
   timePeriod: number,
   options: Options,
@@ -392,10 +374,16 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
       .map(([developer, points]) => `  "${developer}": ${points.toFixed(1)}\n`)
       .join('')
 
-  return makeChartFiles(mmd, 'average-weekly-storypoint-velocity-per-developer-pie', options)
+  return makeChartFiles(
+    pisnge,
+    mmd,
+    'average-weekly-storypoint-velocity-per-developer-pie',
+    options,
+  )
 }
 
 export async function makeVelocityByDeveloperChart(
+  pisnge: Pisnge,
   issues: JiraIssue[],
   periodsAgo: number,
   period: Period,
@@ -437,10 +425,16 @@ export async function makeVelocityByDeveloperChart(
       .map(([developer, points]) => `  "${developer}": ${points}\n`)
       .join('')
 
-  return makeChartFiles(mmd, `storypoint-velocity-per-developer-${filenameLabel}-pie`, options)
+  return makeChartFiles(
+    pisnge,
+    mmd,
+    `storypoint-velocity-per-developer-${filenameLabel}-pie`,
+    options,
+  )
 }
 
 export async function makeWorkItemChangesChart(
+  pisnge: Pisnge,
   changes: IssueChange[] | undefined,
   period: Period,
   options: Options,
@@ -458,5 +452,5 @@ export async function makeWorkItemChangesChart(
     '  columns [Not Existing, Draft, To Do, In Progress, In Review, Ready for QA, In Test, Done]\n' +
     changeRows.join('\n')
 
-  return makeChartFiles(mmd, `work-item-changes-${period}`, options)
+  return makeChartFiles(pisnge, mmd, `work-item-changes-${period}`, options)
 }

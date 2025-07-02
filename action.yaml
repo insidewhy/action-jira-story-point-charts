@@ -2,43 +2,8 @@ name: action-jira-story-point-charts
 description: Generate story point charts from jira issues and post them to slack
 author: insidewhy
 runs:
-  using: composite
-  steps:
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-    - name: Install Dependencies
-      shell: bash
-      run: |
-        wget https://github.com/insidewhy/pisnge/releases/latest/download/pisnge-ubuntu-22.04
-        mv pisnge-ubuntu-22.04 /usr/local/bin/pisnge
-        chmod a+x /usr/local/bin/pisnge
-
-        cd ${{ github.action_path }}
-        npm install -g corepack@latest
-        corepack enable
-        pnpm install --only=production
-    - name: Run Action
-      shell: bash
-      env:
-        INPUT_SLACK-CHANNEL: ${{inputs.slack-channel}}
-        INPUT_CHARTS: ${{inputs.charts}}
-        INPUT_STORY-POINT-ESTIMATE: ${{inputs.story-point-estimate}}
-        INPUT_JIRA-USER: ${{inputs.jira-user}}
-        INPUT_JIRA-BASE-URL: ${{inputs.jira-base-url}}
-        INPUT_JIRA-TOKEN: ${{inputs.jira-token}}
-        INPUT_SLACK-TOKEN: ${{inputs.slack-token}}
-        INPUT_JIRA-FIELDS: ${{inputs.jira-fields}}
-        INPUT_JIRA-STATUSES: ${{inputs.jira-statuses}}
-        INPUT_JQL: ${{inputs.jql}}
-        INPUT_SUMMARY: ${{inputs.summary}}
-        INPUT_WITH-DAILY-DESCRIPTION: ${{inputs.with-daily-description}}
-        INPUT_WITH-WEEKLY-DESCRIPTION: ${{inputs.with-weekly-description}}
-        INPUT_STORE-WORK-ITEM-HISTORY: ${{inputs.store-work-item-history}}
-      run: |
-        cd ${{ github.action_path }}
-        node lib/index.cjs
+  using: node20
+  main: lib/index.cjs
 branding:
   icon: check-square
   color: blue

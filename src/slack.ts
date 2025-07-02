@@ -3,7 +3,7 @@ import { basename } from 'node:path'
 
 import { Chart } from './charts'
 
-export async function postChartToChannel(
+export async function postChartsToChannel(
   slackToken: string,
   channel: string,
   charts: Chart[],

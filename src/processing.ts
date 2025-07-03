@@ -236,7 +236,10 @@ export async function loadIssueChanges(
         storyPoints: issue.storyPoints,
         status: issue.status,
       })
-    } else if (comparison.storyPoints !== issue.storyPoints || comparison.status !== issue.status) {
+    } else if (
+      comparison.storyPoints !== issue.storyPoints ||
+      comparison.status.toLocaleLowerCase() !== issue.status.toLocaleLowerCase()
+    ) {
       changes.push({
         key: issue.key,
         storyPoints: issue.storyPoints,

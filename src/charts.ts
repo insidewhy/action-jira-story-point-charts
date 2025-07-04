@@ -3,9 +3,9 @@ import { join as pathJoin } from 'node:path'
 
 import { Options, Status } from './config'
 import { JiraIssue } from './jira'
+import { Pisnge } from './pisnge'
 import { IssueChange, PointBuckets, PointBucketVelocities } from './processing'
 import { Period, PERIOD_LENGTHS } from './time'
-import { Pisnge } from './pisnge'
 
 export interface Chart {
   filePath: string
@@ -148,21 +148,26 @@ export async function makeRemainingStoryPointsLineChart(
   const { statuses } = options
   const plotColorPalette: string[] = []
   const lines: string[] = []
+  const legendItems: string[] = []
   if (pointBuckets.hasStartedEvents) {
     plotColorPalette.push(statuses.inProgress.color)
     lines.push(`  line [${remainingPoints.started.join(', ')}]`)
+    legendItems.push('In Progress')
   }
   if (pointBuckets.hasToReviewEvents) {
     plotColorPalette.push(statuses.inReview.color)
     lines.push(`  line [${remainingPoints.toReview.join(', ')}]`)
+    legendItems.push('In Review')
   }
   if (pointBuckets.hasDevelopedEvents) {
     plotColorPalette.push(statuses.readyForQA.color)
     lines.push(`  line [${remainingPoints.developed.join(', ')}]`)
+    legendItems.push('Ready for QA')
   }
   if (pointBuckets.hasDoneEvents) {
     plotColorPalette.push(statuses.done.color)
     lines.push(`  line [${remainingPoints.done.join(', ')}]`)
+    legendItems.push('Done')
   }
 
   const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
@@ -172,10 +177,13 @@ export async function makeRemainingStoryPointsLineChart(
   const xAxis = rangeTo(xAxisCount)
     .map((i) => `"${shownLabel} ${i}"`)
     .join(', ')
+  const width = xAxisCount >= 15 ? 1000 : 800
+
   const mmd =
-    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
+    `%%{init: {'width': ${width}, 'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
     `xychart-beta\n` +
     `  title "Story points remaining by ${label}"\n` +
+    `  legend [${legendItems.join(', ')}]\n` +
     `  x-axis [${xAxis}]\n` +
     `  y-axis "Story points" ${minY} --> ${maxY}\n` +
     lines.join('\n')
@@ -200,21 +208,26 @@ export async function makeVelocityChart(
   const { statuses } = options
   const plotColorPalette: string[] = []
   const lines: string[] = []
+  const legendItems: string[] = []
   if (velocities.started.length) {
     plotColorPalette.push(statuses.inProgress.color)
     lines.push(`  line [${velocities.started.slice(1, -1).join(', ')}]`)
+    legendItems.push('In Progress')
   }
   if (velocities.toReview.length) {
     plotColorPalette.push(statuses.inReview.color)
     lines.push(`  line [${velocities.toReview.slice(1, -1).join(', ')}]`)
+    legendItems.push('In Progress')
   }
   if (velocities.developed.length) {
     plotColorPalette.push(statuses.readyForQA.color)
     lines.push(`  line [${velocities.developed.slice(1, -1).join(', ')}]`)
+    legendItems.push('Ready for QA')
   }
   if (velocities.done.length) {
     plotColorPalette.push(statuses.done.color)
     lines.push(`  line [${velocities.done.slice(1, -1).join(', ')}]`)
+    legendItems.push('Done')
   }
 
   const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
@@ -224,10 +237,12 @@ export async function makeVelocityChart(
   const xAxis = rangeTo(xAxisCount)
     .map((i) => `"${shownLabel} ${i + 1}"`)
     .join(', ')
+  const width = xAxisCount >= 15 ? 1000 : 800
   const mmd =
-    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
+    `%%{init: {'width': ${width}, 'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
     `xychart-beta\n` +
     `  title "Story point velocity by week"\n` +
+    `  legend [${legendItems.join(', ')}]\n` +
     `  x-axis [${xAxis}]\n` +
     `  y-axis "Story points" 0 --> ${maxY}\n` +
     lines.join('\n')
@@ -274,27 +289,26 @@ export async function makeOpenIssuesChart(
 
   if (openIssues.size === 0) return undefined
 
-  const sorted = [...openIssues.entries()]
+  const sortedOpenIssues = [...openIssues.entries()]
     .map(([status, stat]) => ({ status, ...stat }))
     .sort((a, b) => b.daysReadyForQA - a.daysReadyForQA)
   const theme = {
     xyChart: {
-      plotColorPalette: [
-        statuses.inReview.color,
-        statuses.readyForQA.color,
-        statuses.inReview.color,
-      ].join(', '),
+      plotColorPalette: [statuses.inReview.color, statuses.readyForQA.color].join(', '),
     },
   }
-  const inReviewBar = sorted.map((stat) => stat.daysReadyForReview)
-  const readyForQABar = sorted.map((stat) => stat.daysReadyForQA)
-  const maxX = Math.max(sorted[0].daysReadyForReview, sorted[0].daysReadyForQA)
+  const inReviewBar = sortedOpenIssues.map((stat) => stat.daysReadyForReview)
+  const readyForQABar = sortedOpenIssues.map((stat) => stat.daysReadyForQA)
+  const maxX = Math.max(sortedOpenIssues[0].daysReadyForReview, sortedOpenIssues[0].daysReadyForQA)
+
+  const width = sortedOpenIssues.length >= 15 ? 1000 : 800
 
   const mmd =
-    `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
+    `%%{init: {'width': ${width}, 'theme': 'base', 'themeVariables': ${JSON.stringify(theme)}}}%%\n` +
     `xychart-beta\n` +
     `  title "Issues in review or ready for QA"\n` +
-    `  x-axis [${[...sorted.map(({ status }) => status)].join(', ')}]\n` +
+    `  legend [In Review, Ready for QA]\n` +
+    `  x-axis [${[...sortedOpenIssues.map(({ status }) => status)].join(', ')}]\n` +
     `  y-axis "Number of days in status" 0 --> ${maxX}\n` +
     `  bar [${inReviewBar.join(', ')}]\n` +
     `  bar [${readyForQABar.join(', ')}]`

@@ -12,9 +12,7 @@ export class Pisnge {
   readonly #binaryPath: string = join(tmpdir(), 'pisnge')
 
   beginDownload(): void {
-    if (this.#downloadPromise) return
-
-    this.#downloadPromise = (async () => {
+    this.#downloadPromise ??= (async () => {
       try {
         await access(this.#binaryPath, X_OK)
       } catch {

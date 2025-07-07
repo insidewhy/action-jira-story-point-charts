@@ -1,18 +1,20 @@
 import { mkdir, writeFile } from 'node:fs/promises'
+import { join as pathJoin } from 'node:path'
 
 import {
   Chart,
   makeAverageWeelyVelocityByDeveloperChart,
   makeOpenIssuesChart,
   makeRemainingStoryPointsLineChart,
+  makeSprintBurnUpChart,
   makeStoryPointsPieChart,
   makeVelocityByDeveloperChart,
   makeVelocityChart,
   makeWorkItemChangesChart,
 } from './charts'
-import { Options, parseOptions } from './config'
+import { ChartName, Options, parseOptions } from './config'
 import { describeWorkState } from './description'
-import { fetchIssues } from './jira'
+import { fetchIssues, getJiraFieldIds } from './jira'
 import { Pisnge } from './pisnge'
 import {
   loadHistoricalData,
@@ -38,7 +40,8 @@ function once<T>(callback: () => T): () => T {
 async function runChartBot(options: Options) {
   const pisnge = new Pisnge()
   pisnge.beginDownload()
-  const issues = await fetchIssues(options)
+  const fieldIds = await getJiraFieldIds(options.jiraAuth, options.jiraBaseUrl, options.jiraFields)
+  const issues = await fetchIssues(options, fieldIds)
 
   await mkdir(options.output, { recursive: true })
 
@@ -66,7 +69,10 @@ async function runChartBot(options: Options) {
     return comparisonIssues && loadIssueChanges(issues, comparisonIssues)
   })
 
-  const allCharts = new Map<string, () => Promise<Chart | undefined>>([
+  const chartGenerators = new Map<
+    ChartName,
+    (config: Record<string, string>) => Promise<Chart | undefined>
+  >([
     [
       'remaining-by-day',
       async () => {
@@ -116,11 +122,29 @@ async function runChartBot(options: Options) {
       async () =>
         makeWorkItemChangesChart(pisnge, await getChangesFromPreviousWeek(), 'week', options),
     ],
+    [
+      'sprint-burn-up',
+      async (config) => {
+        const boardId = config['board-id']
+        if (!boardId) {
+          throw new Error('Must provide board-id parameter to sprint-burn-up chart')
+        }
+        return makeSprintBurnUpChart(
+          pisnge,
+          boardId,
+          options.storeWorkItemHistory!,
+          options,
+          fieldIds,
+        )
+      },
+    ],
   ])
 
   const { channel } = options
 
-  const charts = await Promise.all(options.charts.map((chartName) => allCharts.get(chartName)!()))
+  const charts = await Promise.all(
+    options.charts.map((chartConfig) => chartGenerators.get(chartConfig.name)!(chartConfig.config)),
+  )
 
   const initialCommentSections = [
     options.summary,
@@ -142,11 +166,10 @@ async function runChartBot(options: Options) {
   ].filter((v) => Boolean(v))
 
   if (options.storeWorkItemHistory) {
-    const jiraData = JSON.stringify(issues)
     const monthPrefix = formatDate(new Date())
     const fullPath = `${options.storeWorkItemHistory}/${monthPrefix}`
     await mkdir(fullPath, { recursive: true })
-    await writeFile(`${fullPath}/jira.json`, jiraData)
+    await writeFile(pathJoin(fullPath, 'jira.json'), JSON.stringify(issues))
   }
 
   if (channel) {

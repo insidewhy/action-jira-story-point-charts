@@ -5,7 +5,7 @@ export interface Status {
   color: string
 }
 
-interface Statuses {
+export interface Statuses {
   draft: Status
   blocked: Status
   todo: Status
@@ -25,9 +25,42 @@ export interface JiraFields {
   developer: string
 }
 
+// have to write the files because the mermaid API requires that
+const OUTPUT_DIRECTORY = 'charts'
+
+const DEFAULT_CHART_NAMES = [
+  'remaining-by-day',
+  'by-status',
+  'remaining-by-week',
+  'in-review-and-test',
+  'weekly-velocity',
+] as const
+
+const DEFAULT_CHARTS: ChartConfig[] = DEFAULT_CHART_NAMES.map((name) => ({
+  name,
+  config: {},
+}))
+
+const CHART_NAMES = [
+  ...DEFAULT_CHART_NAMES,
+  'velocity-by-developer',
+  'velocity-by-developer-this-week',
+  'velocity-by-developer-last-week',
+  'daily-work-item-changes',
+  'weekly-work-item-changes',
+  'sprint-burn-up',
+] as const
+
+export interface ChartConfig {
+  name: ChartName
+  config: Record<string, string>
+}
+
+export type ChartName = (typeof CHART_NAMES)[number]
+
 export interface Options {
   channel?: string
-  charts: string[]
+  charts: ChartConfig[]
   output: string
   storyPointEstimate: number
   noImages?: boolean
@@ -42,26 +75,6 @@ export interface Options {
   withWeeklyDescription: string
   storeWorkItemHistory?: string
 }
-
-// have to write the files because the mermaid API requires that
-const OUTPUT_DIRECTORY = 'charts'
-
-const DEFAULT_CHARTS = [
-  'remaining-by-day',
-  'by-status',
-  'remaining-by-week',
-  'in-review-and-test',
-  'weekly-velocity',
-]
-
-const AVAILABLE_CHARTS = new Set([
-  ...DEFAULT_CHARTS,
-  'velocity-by-developer',
-  'velocity-by-developer-this-week',
-  'velocity-by-developer-last-week',
-  'daily-work-item-changes',
-  'weekly-work-item-changes',
-])
 
 const DEFAULT_STATUSES: Statuses = {
   draft: { name: 'draft', color: '#8fa3bf' },
@@ -124,18 +137,54 @@ export function parseOptions(): Options {
   const withWeeklyDescription = getInput('with-weekly-description')
   const storeWorkItemHistory = getInput('store-work-item-history')
 
-  let charts = DEFAULT_CHARTS
+  const charts = DEFAULT_CHARTS
   if (!/^\s*$/.test(chartsRaw)) {
-    charts = chartsRaw.split(/\s+/)
-    for (const chart of charts) {
-      if (!AVAILABLE_CHARTS.has(chart)) throw new Error(`Chart type ${chart} is not supported`)
+    charts.splice(0)
+    let currentChartConfig: Record<string, string> = {}
+    let previousChartNeedsConfig = false
+    const chartConfigLines = chartsRaw.split(/\n/)
+    for (let i = 0; i < chartConfigLines.length; ++i) {
+      const chartConfigLine = chartConfigLines[i].trim()
+      if (!chartConfigLine) continue
+
+      if (!chartConfigLine.startsWith('-')) {
+        if (!previousChartNeedsConfig) {
+          throw new Error(`Invalid chart configuration line: ${chartConfigLines}`)
+        }
+
+        let [configKey, configVal] = chartConfigLine.split(':')
+        configKey = configKey.trim()
+        configVal = configVal.trim()
+        if (!configKey || !configVal) {
+          throw new Error(`Invalid chart configuration line: ${chartConfigLines}`)
+        }
+        currentChartConfig[configKey] = configVal
+        continue
+      }
+
+      previousChartNeedsConfig = false
+      currentChartConfig = {}
+      let chartNameConfig = chartConfigLine.slice(1).trim()
+      if (chartNameConfig.endsWith(':')) {
+        previousChartNeedsConfig = true
+        chartNameConfig = chartNameConfig.slice(0, -1)
+      }
+
+      const chartName = chartNameConfig as ChartName
+      if (!CHART_NAMES.includes(chartName))
+        throw new Error(`Chart type ${chartName} is not supported`)
+      charts.push({ name: chartName, config: currentChartConfig })
     }
   }
 
-  if (charts.includes('daily-work-item-changes') || charts.includes('weekly-work-item-changes')) {
+  if (
+    charts.find(({ name }) => name === 'daily-work-item-changes') ||
+    charts.find(({ name }) => name === 'weekly-work-item-changes') ||
+    charts.find(({ name }) => name === 'sprint-burn-up')
+  ) {
     if (!storeWorkItemHistory) {
       throw new Error(
-        "Cannot use 'daily-work-item-changes' or 'weekly-work-item-changes' without store-work-item-history option",
+        "Cannot use 'daily-work-item-changes', 'weekly-work-item-changes' or 'sprint-burn-up' without store-work-item-history option",
       )
     }
   }

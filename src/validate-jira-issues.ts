@@ -1,10 +1,13 @@
 import { parseOptions } from './config'
-import { fetchIssues } from './jira'
+import { fetchIssues, getJiraFieldIds } from './jira'
 
 async function validateJiraIssues() {
   const options = parseOptions()
 
-  const issues = await fetchIssues(options)
+  const issues = await fetchIssues(
+    options,
+    await getJiraFieldIds(options.jiraAuth, options.jiraBaseUrl, options.jiraFields),
+  )
 
   for (const issue of issues) {
     const { key, startedTime, endTime: resolutionTime, devCompleteTime } = issue

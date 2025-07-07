@@ -1,11 +1,11 @@
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join as pathJoin } from 'node:path'
 
 import { Options, Status } from './config'
-import { JiraIssue } from './jira'
+import { fetchIssuesFromSprint, FieldIds, getCurrentSprintId, JiraIssue } from './jira'
 import { Pisnge } from './pisnge'
 import { IssueChange, PointBuckets, PointBucketVelocities } from './processing'
-import { Period, PERIOD_LENGTHS } from './time'
+import { formatDate, Period, PERIOD_LENGTHS } from './time'
 
 export interface Chart {
   filePath: string
@@ -469,4 +469,23 @@ export async function makeWorkItemChangesChart(
     changeRows.join('\n')
 
   return makeChartFiles(pisnge, mmd, `work-item-changes-${period}`, options)
+}
+
+export async function makeSprintBurnUpChart(
+  _pisnge: Pisnge,
+  boardId: string,
+  dataDir: string,
+  options: Options,
+  fieldIds: FieldIds,
+): Promise<Chart | undefined> {
+  const sprintId = await getCurrentSprintId(options, boardId)
+  const sprintIssues = await fetchIssuesFromSprint(options, fieldIds, sprintId)
+  const sprintsPath = pathJoin(dataDir, 'sprints', boardId, sprintId.toString())
+
+  const thisSprintPath = pathJoin(sprintsPath, formatDate(new Date()))
+  await mkdir(thisSprintPath, { recursive: true })
+  await writeFile(pathJoin(thisSprintPath, 'jira.json'), JSON.stringify(sprintIssues))
+
+  console.log('TODO: make sprint burn up chart for board', boardId, 'and sprint', sprintId)
+  return undefined
 }

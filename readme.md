@@ -108,10 +108,17 @@ gh workflow run chart-bot -f slack-channel=C52ZZTO9EAA
 #### charts
 
 This determines which charts should be created and in which order they should be posted.
-The following shows the defaults:
+The following shows the defaults.
+
+Note the `|` in the `yaml`, this is because github only supports string action fields so a "yaml like" string must be sent to the action.
 
 ```yaml
-charts: remaining-by-day by-status remaining-by-week in-review-and-test weekly-velocity
+charts: |
+  - remaining-by-day
+  - by-status
+  - remaining-by-week
+  - in-review-and-test
+  - weekly-velocity
 ```
 
 There are additional `velocity-by-developer`, `velocity-by-developer-this-week` and `velocity-by-developer-last-week` charts available which are not produced by default.
@@ -133,8 +140,6 @@ jira-fields: |
 ```
 
 Field names in the config are matched to those in Jira using a case-insensitive comparison.
-
-Note the `|` in the `yaml`, this is because github only supports string action fields so a "yaml like" string must be sent to the action.
 
 The `resolutiondate` field is used to determine when an issue is completed, but the `Start Time`, `Ready For Review Time` and `Development Complete Time` fields are not available by default.
 If the green, orange and purple lines would be appreciated then custom fields will need to be created, it is recommended to automatically update these fields when transitions occur, this can be configured by attaching actions to various workflow transitions in the Jira workflow configuration UI.

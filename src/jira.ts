@@ -1,6 +1,6 @@
-import { JiraFields, Options } from './config'
+import { JiraFields, Options, Statuses } from './config'
 
-interface FieldIds {
+export interface FieldIds {
   storyPoints: string
   startTime?: string
   readyForReviewTime?: string
@@ -22,9 +22,14 @@ export interface JiraIssue {
   developer: string | undefined
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function makeJiraApiRequest(auth: string, baseUrl: string, path: string): Promise<any> {
-  const response = await fetch(`${baseUrl}/rest/api/3/${path}`, {
+async function makeJiraApiRequest(
+  auth: string,
+  baseUrl: string,
+  apiPath: string,
+  path: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
+  const response = await fetch(`${baseUrl}/rest/${apiPath}/${path}`, {
     headers: { authorization: `Basic ${auth}` },
   })
   if (!response.ok) {
@@ -33,8 +38,20 @@ async function makeJiraApiRequest(auth: string, baseUrl: string, path: string): 
   return response.json()
 }
 
-async function getFieldIds(auth: string, baseUrl: string, fields: JiraFields): Promise<FieldIds> {
-  const fieldMetadata: Array<{ name: string; id: string }> = await makeJiraApiRequest(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const makeJiraApiV3Request = (auth: string, baseUrl: string, path: string): Promise<any> =>
+  makeJiraApiRequest(auth, baseUrl, 'api/3', path)
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const makeJiraAgileRequest = (auth: string, baseUrl: string, path: string): Promise<any> =>
+  makeJiraApiRequest(auth, baseUrl, 'agile/1.0', path)
+
+export async function getJiraFieldIds(
+  auth: string,
+  baseUrl: string,
+  fields: JiraFields,
+): Promise<FieldIds> {
+  const fieldMetadata: Array<{ name: string; id: string }> = await makeJiraApiV3Request(
     auth,
     baseUrl,
     'field',
@@ -72,29 +89,22 @@ async function getFieldIds(auth: string, baseUrl: string, fields: JiraFields): P
 }
 
 function fetchIssuesPage(auth: string, baseUrl: string, jql: string, offset = 0) {
-  return makeJiraApiRequest(auth, baseUrl, `search?jql=${jql}&startAt=${offset}`)
+  return makeJiraApiV3Request(auth, baseUrl, `search?jql=${jql}&startAt=${offset}`)
 }
 
-export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
-  const { jiraAuth: auth, jiraBaseUrl: baseUrl, jql: rawJql, statuses } = options
-  const jql = encodeURIComponent(rawJql)
-
-  const fieldIds = await getFieldIds(auth, baseUrl, options.jiraFields)
-
-  const firstPage = await fetchIssuesPage(auth, baseUrl, jql)
-  const { issues } = firstPage
-  const total = firstPage.total
-  while (issues.length < total) {
-    const nextPage = await fetchIssuesPage(auth, baseUrl, jql, issues.length)
-    issues.push(...nextPage.issues)
-  }
-
+export async function processJiraIssues(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  jiraIssues: any[],
+  fieldIds: FieldIds,
+  statuses: Statuses,
+  storyPointEstimate: number,
+): Promise<JiraIssue[]> {
   const processedIssues: JiraIssue[] = []
-  for (const issue of issues) {
+  for (const issue of jiraIssues) {
     const type = issue.fields.issuetype.name
     if (type === 'Epic') continue
 
-    const storyPoints = issue.fields[fieldIds.storyPoints] ?? options.storyPointEstimate
+    const storyPoints = issue.fields[fieldIds.storyPoints] ?? storyPointEstimate
     if (storyPoints === 0) continue
 
     const status = issue.fields.status.name
@@ -167,4 +177,59 @@ export async function fetchIssues(options: Options): Promise<JiraIssue[]> {
   }
 
   return processedIssues
+}
+
+export async function fetchIssues(options: Options, fieldIds: FieldIds): Promise<JiraIssue[]> {
+  const { jiraAuth: auth, jiraBaseUrl: baseUrl } = options
+  const jql = encodeURIComponent(options.jql)
+
+  const firstPage = await fetchIssuesPage(auth, baseUrl, jql)
+  const { issues } = firstPage
+  const total = firstPage.total
+  while (issues.length < total) {
+    const nextPage = await fetchIssuesPage(auth, baseUrl, jql, issues.length)
+    issues.push(...nextPage.issues)
+  }
+
+  return processJiraIssues(issues, fieldIds, options.statuses, options.storyPointEstimate)
+}
+
+export async function getCurrentSprintId(options: Options, boardId: string): Promise<number> {
+  const response = await makeJiraAgileRequest(
+    options.jiraAuth,
+    options.jiraBaseUrl,
+    `board/${boardId}/sprint?state=active`,
+  )
+
+  if (
+    !Array.isArray(response.values) ||
+    response.values.length !== 1 ||
+    typeof response.values[0].id !== 'number'
+  ) {
+    throw new Error('Could not get current sprint id')
+  }
+
+  return response.values[0].id
+}
+
+function fetchSprintIssues(auth: string, baseUrl: string, sprintId: number, offset = 0) {
+  return makeJiraAgileRequest(auth, baseUrl, `sprint/${sprintId}/issue?startAt=${offset}`)
+}
+
+export async function fetchIssuesFromSprint(
+  options: Options,
+  fieldIds: FieldIds,
+  sprintId: number,
+): Promise<JiraIssue[]> {
+  const { jiraAuth: auth, jiraBaseUrl: baseUrl } = options
+
+  const firstPage = await fetchSprintIssues(auth, baseUrl, sprintId)
+  const { issues } = firstPage
+  const total = firstPage.total
+  while (issues.length < total) {
+    const nextPage = await fetchSprintIssues(auth, baseUrl, sprintId, issues.length)
+    issues.push(...nextPage.issues)
+  }
+
+  return processJiraIssues(issues, fieldIds, options.statuses, options.storyPointEstimate)
 }

@@ -63,11 +63,11 @@ it('can parse entire config', () => {
   expect(config).toEqual({
     channel: DEFAULT_CONFIG.slackChannel,
     charts: [
-      'remaining-by-day',
-      'by-status',
-      'remaining-by-week',
-      'in-review-and-test',
-      'weekly-velocity',
+      { name: 'remaining-by-day', config: {} },
+      { name: 'by-status', config: {} },
+      { name: 'remaining-by-week', config: {} },
+      { name: 'in-review-and-test', config: {} },
+      { name: 'weekly-velocity', config: {} },
     ],
     output: 'charts',
     storyPointEstimate: 5,

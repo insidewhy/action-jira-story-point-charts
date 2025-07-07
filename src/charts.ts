@@ -379,6 +379,7 @@ export async function makeAverageWeelyVelocityByDeveloperChart(
       velocities.set(developer, (velocities.get(developer) ?? 0) + storyPoints / nDevKeys)
     }
   }
+  if (!velocities.size) return undefined
 
   const mmd =
     `%%{init: {'theme': 'base', 'themeVariables': ${JSON.stringify(DEFAULT_PIE_CHART_THEME)}}}%%\n` +
@@ -420,6 +421,7 @@ export async function makeVelocityByDeveloperChart(
       velocities.set(developer, (velocities.get(developer) ?? 0) + storyPoints)
     }
   }
+  if (!velocities.size) return undefined
 
   let label: string = period
   if (periodsAgo === 0) {

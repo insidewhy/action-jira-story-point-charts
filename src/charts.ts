@@ -1,11 +1,11 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join as pathJoin } from 'node:path'
 
 import { Options, Status } from './config'
-import { fetchIssuesFromSprint, FieldIds, getCurrentSprintId, JiraIssue } from './jira'
+import { fetchIssuesFromSprint, FieldIds, getCurrentSprintIdAndConfig, JiraIssue } from './jira'
 import { Pisnge } from './pisnge'
 import { IssueChange, PointBuckets, PointBucketVelocities } from './processing'
-import { formatDate, Period, PERIOD_LENGTHS } from './time'
+import { formatDate, getNextWorkDay, Period, PERIOD_LENGTHS, workDaysBetween } from './time'
 
 export interface Chart {
   filePath: string
@@ -471,21 +471,117 @@ export async function makeWorkItemChangesChart(
   return makeChartFiles(pisnge, mmd, `work-item-changes-${period}`, options)
 }
 
+const straightLine = (length: number, total: number): number[] => {
+  const gap = total / length
+  return rangeTo(length).map((i) => (i + 1) * gap)
+}
+
 export async function makeSprintBurnUpChart(
-  _pisnge: Pisnge,
+  pisnge: Pisnge,
   boardId: string,
   dataDir: string,
   options: Options,
   fieldIds: FieldIds,
 ): Promise<Chart | undefined> {
-  const sprintId = await getCurrentSprintId(options, boardId)
-  const sprintIssues = await fetchIssuesFromSprint(options, fieldIds, sprintId)
+  const { sprintId, startDate, endDate } = await getCurrentSprintIdAndConfig(options, boardId)
   const sprintsPath = pathJoin(dataDir, 'sprints', boardId, sprintId.toString())
 
-  const thisSprintPath = pathJoin(sprintsPath, formatDate(new Date()))
-  await mkdir(thisSprintPath, { recursive: true })
-  await writeFile(pathJoin(thisSprintPath, 'jira.json'), JSON.stringify(sprintIssues))
+  const now = new Date()
+  const daysFromStartDate = workDaysBetween(startDate, now, options.workDays)
+  if (daysFromStartDate < 0.5) {
+    // less than half a day into the sprint so don't produce a chart
+    return undefined
+  }
 
-  console.log('TODO: make sprint burn up chart for board', boardId, 'and sprint', sprintId)
-  return undefined
+  // round i.e. if 1.5 days from the start of the sprint then also produce a report
+  // for the final day even though we're only half a day through it
+  const dayCount = Math.round(daysFromStartDate)
+  const todayIsWorkDay = options.workDays.has(now.getDay())
+  const jiraIssuesEachDay: JiraIssue[][] = []
+
+  // the first stored date will be for the sprint day + 1
+  const historicalDayCount = dayCount - (todayIsWorkDay ? 1 : 0)
+  let nextDate = getNextWorkDay(startDate, options.workDays)
+  for (let i = 0; i < historicalDayCount; ++i) {
+    // read historical issues for past work day
+    const dayPath = pathJoin(sprintsPath, formatDate(nextDate), 'jira.json')
+    jiraIssuesEachDay.push(JSON.parse((await readFile(dayPath)).toString()))
+    nextDate = getNextWorkDay(nextDate, options.workDays)
+  }
+
+  if (todayIsWorkDay) {
+    const sprintPathForToday = pathJoin(sprintsPath, formatDate(nextDate))
+    const sprintIssuesToday = await fetchIssuesFromSprint(options, fieldIds, sprintId)
+    await mkdir(sprintPathForToday, { recursive: true })
+    await writeFile(pathJoin(sprintPathForToday, 'jira.json'), JSON.stringify(sprintIssuesToday))
+    jiraIssuesEachDay.push(sprintIssuesToday)
+  }
+
+  const commitmentPerDay: number[] = []
+  const readyForQAPointsPerDay: number[] = []
+  const donePointsPerDay: number[] = []
+
+  for (const jiraIssues of jiraIssuesEachDay) {
+    let commitment = 0
+    let readyForQAPoints = 0
+    let donePoints = 0
+
+    for (const issue of jiraIssues) {
+      commitment += issue.storyPoints
+      if (issue.devCompleteTime) readyForQAPoints += issue.storyPoints
+      if (issue.endTime) donePoints += issue.storyPoints
+    }
+
+    commitmentPerDay.push(commitment)
+    readyForQAPointsPerDay.push(readyForQAPoints)
+    donePointsPerDay.push(donePoints)
+  }
+
+  const sprintDayCount = Math.round(workDaysBetween(startDate, endDate, options.workDays))
+  const maxStoryPoints = Math.max(...commitmentPerDay)
+  commitmentPerDay.push(
+    ...Array(sprintDayCount - commitmentPerDay.length).fill(commitmentPerDay.at(-1)),
+  )
+
+  const plotColors = ['#cccccc', '#4c82db', '#9c1de9', '#038411']
+  const legend = ['Target', 'Commitment', 'Ready for QA', 'Done']
+  const plotPoints = ['none', 'diamond', 'square', 'square']
+  const strokeStyles = ['dashed', 'solid', 'solid', 'solid']
+
+  const lines = [
+    straightLine(sprintDayCount, commitmentPerDay.at(-1)!),
+    commitmentPerDay,
+    readyForQAPointsPerDay,
+    donePointsPerDay,
+  ]
+
+  if (commitmentPerDay[0] !== commitmentPerDay.at(-1)) {
+    lines.unshift(straightLine(sprintDayCount, commitmentPerDay[0]))
+    plotColors.unshift('#aaaaaa')
+    legend.unshift('Original Target')
+    plotPoints.unshift('none')
+    strokeStyles.unshift('dashed')
+  }
+
+  const xAxis = rangeTo(sprintDayCount).map((i) => `Day ${i + 1}`)
+
+  const mmd = `%%{init: {
+  'width': 1000,
+  'theme': 'base',
+  'themeVariables': {
+    "xyChart":{
+      "plotColorPalette":"${plotColors.join(',')}",
+      "plotPoints":"${plotPoints.join(',')}",
+      "strokeStyles":"${strokeStyles.join(',')}",
+    }
+  }
+}}%%
+xychart-beta
+  title "Burn-up chart"
+  legend [${legend.join(', ')}]
+  x-axis [${xAxis.join(', ')}]
+  y-axis "Story points" 0 --> ${maxStoryPoints}
+${lines.map((line) => `  line [${line.join(', ')}]`).join('\n')}`
+
+  return makeChartFiles(pisnge, mmd, `sprint-burn-up-${boardId}`, options)
 }

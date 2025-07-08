@@ -92,7 +92,7 @@ function fetchIssuesPage(auth: string, baseUrl: string, jql: string, offset = 0)
   return makeJiraApiV3Request(auth, baseUrl, `search?jql=${jql}&startAt=${offset}`)
 }
 
-export async function processJiraIssues(
+async function processJiraIssues(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   jiraIssues: any[],
   fieldIds: FieldIds,
@@ -194,7 +194,10 @@ export async function fetchIssues(options: Options, fieldIds: FieldIds): Promise
   return processJiraIssues(issues, fieldIds, options.statuses, options.storyPointEstimate)
 }
 
-export async function getCurrentSprintId(options: Options, boardId: string): Promise<number> {
+export async function getCurrentSprintIdAndConfig(
+  options: Options,
+  boardId: string,
+): Promise<{ sprintId: number; startDate: Date; endDate: Date }> {
   const response = await makeJiraAgileRequest(
     options.jiraAuth,
     options.jiraBaseUrl,
@@ -209,7 +212,12 @@ export async function getCurrentSprintId(options: Options, boardId: string): Pro
     throw new Error('Could not get current sprint id')
   }
 
-  return response.values[0].id
+  const sprint = response.values[0]
+  return {
+    sprintId: sprint.id,
+    startDate: new Date(sprint.startDate),
+    endDate: new Date(sprint.endDate),
+  }
 }
 
 function fetchSprintIssues(auth: string, baseUrl: string, sprintId: number, offset = 0) {

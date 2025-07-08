@@ -74,6 +74,7 @@ export interface Options {
   withDailyDescription: string
   withWeeklyDescription: string
   storeWorkItemHistory?: string
+  workDays: Set<number>
 }
 
 const DEFAULT_STATUSES: Statuses = {
@@ -136,6 +137,7 @@ export function parseOptions(): Options {
   const withDailyDescription = getInput('with-daily-description')
   const withWeeklyDescription = getInput('with-weekly-description')
   const storeWorkItemHistory = getInput('store-work-item-history')
+  const workDaysRaw = getInput('work-days')
 
   const charts = DEFAULT_CHARTS
   if (!/^\s*$/.test(chartsRaw)) {
@@ -184,7 +186,7 @@ export function parseOptions(): Options {
   ) {
     if (!storeWorkItemHistory) {
       throw new Error(
-        "Cannot use 'daily-work-item-changes', 'weekly-work-item-changes' or 'sprint-burn-up' without store-work-item-history option",
+        "Cannot use 'daily-work-item-changes', 'weekly-work-item-changes' or 'sprint-burn-up' charts without 'store-work-item-history' option",
       )
     }
   }
@@ -245,6 +247,18 @@ export function parseOptions(): Options {
     }
   }
 
+  const workDays = new Set([1, 2, 3, 4, 5])
+  if (workDaysRaw) {
+    workDays.clear()
+    for (const workDayStr of workDaysRaw.split('')) {
+      const workDay = parseInt(workDayStr)
+      if (isNaN(workDay) || workDay > 6) {
+        throw new Error('Invalid work-days configuration, should be a string like 12345')
+      }
+      workDays.add(workDay)
+    }
+  }
+
   const storyPointEstimate = storyPointEstimateRaw ? parseInt(storyPointEstimateRaw) : 0
   return {
     channel: channel,
@@ -261,5 +275,6 @@ export function parseOptions(): Options {
     withDailyDescription,
     withWeeklyDescription,
     storeWorkItemHistory,
+    workDays,
   }
 }

@@ -55,6 +55,7 @@ function mockConfig(config: MockConfig = DEFAULT_CONFIG): void {
   getInputMock.mockReturnValueOnce(mockedConfig.withDailyDescription ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.withWeeklyDescription ?? '')
   getInputMock.mockReturnValueOnce(mockedConfig.storeWorkItemHistory ?? '')
+  getInputMock.mockReturnValueOnce(mockedConfig.workDays ?? '')
 }
 
 it('can parse entire config', () => {
@@ -97,6 +98,7 @@ it('can parse entire config', () => {
     withDailyDescription: '',
     withWeeklyDescription: '',
     storeWorkItemHistory: '',
+    workDays: new Set([1, 2, 3, 4, 5]),
   })
 })
 

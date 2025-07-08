@@ -41,3 +41,5 @@ inputs:
     description: Add a textual summary of changes for this day with the given heading
   store-work-item-history:
     description: Read and store work item history from/to the file system, this is required for the weekly-work-item-changes and daily-work-item-changes charts and also enhances the descriptions provided by with-weekly-description and with-daily-description
+  work-days:
+    description: Work days for company as numbers from 0 (Sunday) to 6 (Saturday), defaults to 12345

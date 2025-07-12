@@ -465,7 +465,7 @@ export async function makeWorkItemChangesChart(
   const mmd =
     "%%{init: { 'width': 1100 }}%%\nwork-item-movement\n" +
     `  title 'Work item changes since previous ${period}'\n` +
-    '  columns [Not Existing, Draft, To Do, In Progress, In Review, Ready for QA, In Test, Done]\n' +
+    '  columns [Not Existing, Draft, Blocked, To Do, In Progress, In Review, Ready for QA, In Test, Done]\n' +
     changeRows.join('\n')
 
   return makeChartFiles(pisnge, mmd, `work-item-changes-${period}`, options)
@@ -486,8 +486,7 @@ export async function makeSprintBurnUpChart(
   const { sprintId, startDate, endDate } = await getCurrentSprintIdAndConfig(options, boardId)
   const sprintsPath = pathJoin(dataDir, 'sprints', boardId, sprintId.toString())
 
-  const now = new Date()
-  const daysFromStartDate = workDaysBetween(startDate, now, options.workDays)
+  const daysFromStartDate = workDaysBetween(startDate, new Date(), options.workDays)
   if (daysFromStartDate < 0.5) {
     // less than half a day into the sprint so don't produce a chart
     return undefined
@@ -496,26 +495,25 @@ export async function makeSprintBurnUpChart(
   // round i.e. if 1.5 days from the start of the sprint then also produce a report
   // for the final day even though we're only half a day through it
   const dayCount = Math.round(daysFromStartDate)
-  const todayIsWorkDay = options.workDays.has(now.getDay())
   const jiraIssuesEachDay: JiraIssue[][] = []
 
   // the first stored date will be for the sprint day + 1
-  const historicalDayCount = dayCount - (todayIsWorkDay ? 1 : 0)
+  const historicalDayCount = dayCount - 1
   let nextDate = getNextWorkDay(startDate, options.workDays)
   for (let i = 0; i < historicalDayCount; ++i) {
     // read historical issues for past work day
+    // console.log('reading historical data for', formatDate(nextDate))
     const dayPath = pathJoin(sprintsPath, formatDate(nextDate), 'jira.json')
     jiraIssuesEachDay.push(JSON.parse((await readFile(dayPath)).toString()))
     nextDate = getNextWorkDay(nextDate, options.workDays)
   }
 
-  if (todayIsWorkDay) {
-    const sprintPathForToday = pathJoin(sprintsPath, formatDate(nextDate))
-    const sprintIssuesToday = await fetchIssuesFromSprint(options, fieldIds, sprintId)
-    await mkdir(sprintPathForToday, { recursive: true })
-    await writeFile(pathJoin(sprintPathForToday, 'jira.json'), JSON.stringify(sprintIssuesToday))
-    jiraIssuesEachDay.push(sprintIssuesToday)
-  }
+  // console.log('reading today's data for', formatDate(nextDate))
+  const sprintPathForToday = pathJoin(sprintsPath, formatDate(nextDate))
+  const sprintIssuesToday = await fetchIssuesFromSprint(options, fieldIds, sprintId)
+  await mkdir(sprintPathForToday, { recursive: true })
+  await writeFile(pathJoin(sprintPathForToday, 'jira.json'), JSON.stringify(sprintIssuesToday))
+  jiraIssuesEachDay.push(sprintIssuesToday)
 
   const commitmentPerDay: number[] = []
   const readyForQAPointsPerDay: number[] = []

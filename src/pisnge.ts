@@ -38,7 +38,10 @@ export class Pisnge {
     await this.waitForDownload()
 
     return new Promise((resolve, reject) => {
-      const pisngeProcess = spawn(this.#binaryPath, args)
+      const pisngeProcess = spawn(this.#binaryPath, args, { stdio: 'pipe' })
+      let errorOutput = ''
+
+      pisngeProcess.stderr.on('data', (data) => (errorOutput += data))
 
       pisngeProcess.on('error', (err) => {
         reject(new Error(`Failed to start pisnge process: ${err.message}`))
@@ -48,7 +51,7 @@ export class Pisnge {
         if (code === 0) {
           resolve()
         } else {
-          reject(new Error(`pisnge process exited with code ${code}`))
+          reject(new Error(`pisnge process exited with code ${code}: ${errorOutput}`))
         }
       })
     })

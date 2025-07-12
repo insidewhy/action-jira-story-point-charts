@@ -62,3 +62,30 @@ export const getNextWorkDay = (date: Date, workDays: Set<number>): Date => {
   } while (!workDays.has(nextDate.getDay()))
   return nextDate
 }
+
+const getPreviousWorkDay = (date: Date, workDays: Set<number>): Date => {
+  const nextDate = new Date(date)
+  do {
+    nextDate.setDate(nextDate.getDate() - 1)
+  } while (!workDays.has(nextDate.getDay()))
+  return nextDate
+}
+
+export const subtractWorkPeriod = (
+  date: Date,
+  workDays: Set<number>,
+  count: number,
+  period: Period,
+): Date => {
+  let nextDate = new Date(date)
+  if (period === 'day') {
+    for (let i = 0; i < count; ++i) {
+      nextDate = getPreviousWorkDay(nextDate, workDays)
+    }
+  } else {
+    for (let i = 0; i < count; ++i) {
+      nextDate = subtractWorkPeriod(nextDate, workDays, workDays.size, 'day')
+    }
+  }
+  return nextDate
+}

@@ -55,10 +55,10 @@ async function runChartBot(options: Options) {
   const getDailyPointBuckets = once(() => makePointBuckets(issues, DAY_IN_MSECS, 7))
 
   const loadHistoricalDataFromPreviousDay = once(() =>
-    loadHistoricalData(options.storeWorkItemHistory, 'day'),
+    loadHistoricalData(options.storeWorkItemHistory, 'day', options.workDays),
   )
   const loadHistoricalDataFromPreviousWeek = once(() =>
-    loadHistoricalData(options.storeWorkItemHistory, 'week'),
+    loadHistoricalData(options.storeWorkItemHistory, 'week', options.workDays),
   )
   const getChangesFromPreviousDay = once(async () => {
     const comparisonIssues = await loadHistoricalDataFromPreviousDay()

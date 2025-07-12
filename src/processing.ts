@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { JiraIssue } from './jira'
-import { formatDate, Period } from './time'
+import { formatDate, Period, subtractWorkPeriod } from './time'
 
 export interface PointBuckets {
   started: number[]
@@ -190,21 +190,11 @@ export function makePointBucketVelocities(pointBuckets: PointBuckets): PointBuck
 export async function loadHistoricalData(
   dataPath: string | undefined,
   period: Period,
+  workDays: Set<number>,
 ): Promise<JiraIssue[] | undefined> {
   if (!dataPath) return undefined
 
-  const previousDate = new Date()
-  if (period === 'day') {
-    if (previousDate.getDay() === 1) {
-      // on a monday use friday as the previous day
-      previousDate.setDate(previousDate.getDate() - 3)
-    } else {
-      previousDate.setDate(previousDate.getDate() - 1)
-    }
-  } else {
-    previousDate.setDate(previousDate.getDate() - 7)
-  }
-
+  const previousDate = subtractWorkPeriod(new Date(), workDays, 1, period)
   const jiraDataPath = `${dataPath}/${formatDate(previousDate)}/jira.json`
   try {
     return JSON.parse((await readFile(jiraDataPath)).toString())

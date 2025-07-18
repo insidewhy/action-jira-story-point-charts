@@ -170,7 +170,14 @@ export async function makeRemainingStoryPointsLineChart(
     legendItems.push('Done')
   }
 
-  const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
+  const theme = {
+    xyChart: {
+      plotColorPalette: plotColorPalette.join(','),
+      plotPoints: `'${rangeTo(lines.length)
+        .map((_) => 'square')
+        .join(',')}'`,
+    },
+  }
 
   const xAxisCount = (bucketCount ?? pointBuckets.maxBucketIndex) + 1
   const shownLabel = xAxisCount >= 10 ? label[0].toUpperCase() : ucFirst(label)
@@ -230,7 +237,14 @@ export async function makeVelocityChart(
     legendItems.push('Done')
   }
 
-  const theme = { xyChart: { plotColorPalette: plotColorPalette.join(',') } }
+  const theme = {
+    xyChart: {
+      plotColorPalette: plotColorPalette.join(','),
+      plotPoints: `'${rangeTo(lines.length)
+        .map((_) => 'square')
+        .join(',')}'`,
+    },
+  }
 
   const xAxisCount = velocities.started.length - 2
   const shownLabel = xAxisCount >= 10 ? 'W' : 'Week'

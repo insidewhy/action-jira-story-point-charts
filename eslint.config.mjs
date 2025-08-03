@@ -65,6 +65,10 @@ export default [
       'import/named': 'off',
       'import/namespace': 'off',
       'import/no-unresolved': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
     },
   },
 ]

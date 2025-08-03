@@ -224,7 +224,7 @@ export async function makeVelocityChart(
   if (velocities.toReview.length) {
     plotColorPalette.push(statuses.inReview.color)
     lines.push(`  line [${velocities.toReview.slice(1, -1).join(', ')}]`)
-    legendItems.push('In Progress')
+    legendItems.push('In Review')
   }
   if (velocities.developed.length) {
     plotColorPalette.push(statuses.readyForQA.color)
@@ -249,7 +249,7 @@ export async function makeVelocityChart(
   const xAxisCount = velocities.started.length - 2
   const shownLabel = xAxisCount >= 10 ? 'W' : 'Week'
   const xAxis = rangeTo(xAxisCount)
-    .map((i) => `"${shownLabel} ${i + 1}"`)
+    .map((i) => `"${shownLabel} ${i + 2}"`)
     .join(', ')
   const width = xAxisCount >= 15 ? 1000 : 800
   const mmd =

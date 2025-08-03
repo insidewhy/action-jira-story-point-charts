@@ -555,7 +555,12 @@ export async function makeSprintBurnUpChart(
     ...Array(sprintDayCount - commitmentPerDay.length).fill(commitmentPerDay.at(-1)),
   )
 
-  const plotColors = ['#cccccc', '#4c82db', '#9c1de9', '#038411']
+  const plotColors = [
+    '#cccccc',
+    '#444444',
+    options.statuses.readyForQA.color,
+    options.statuses.done.color,
+  ]
   const legend = ['Target', 'Commitment', 'Ready for QA', 'Done']
   const plotPoints = ['none', 'diamond', 'square', 'square']
   const strokeStyles = ['dashed', 'solid', 'solid', 'solid']
